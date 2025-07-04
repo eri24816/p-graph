@@ -15,7 +15,7 @@ npm install
 ## run
 
 ```bash
-uvicorn back.app.main:app --reload
+python back/p_graph/main.py
 ```
 
 ```bash
