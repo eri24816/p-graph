@@ -1,5 +1,5 @@
 [project]
-name = "project-name"
+name = "p-graph"
 version = "0.1.0"
 dependencies = [
     "fastapi>=0.104.0",
