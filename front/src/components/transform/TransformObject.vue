@@ -58,7 +58,6 @@ const getMousePosition = (event: MouseEvent) => {
     const rect = frame.value!.getBoundingClientRect();
     const scaleSensorRect = scaleSensor.value!.getBoundingClientRect();
     const scale = scaleSensorRect.width / scaleSensor.value!.offsetWidth;
-    console.log(event.clientX, rect.left, computedPivotX.value, scale,(event.clientX - rect.left + computedPivotX.value) / scale);
     return {
         x: (event.clientX - rect.left + computedPivotX.value) / scale,
         y: (event.clientY - rect.top + computedPivotY.value) / scale,
@@ -81,14 +80,26 @@ const computedPivotY = computed(() => {
     return props.pivotY;
 }); 
 
+const screenToLocal = (screenPos: { x: number, y: number }) => {
+    const rect = frame.value!.getBoundingClientRect();
+    const scaleSensorRect = scaleSensor.value!.getBoundingClientRect();
+    const scale = scaleSensorRect.width / scaleSensor.value!.offsetWidth;
+    return {
+        x: (screenPos.x - rect.left + computedPivotX.value) / scale,
+        y: (screenPos.y - rect.top + computedPivotY.value) / scale,
+    }
+}
+
 defineExpose({
     getMousePosition,
+    screenToLocal,
 });
 </script>
 
 <style scoped>
 .transform-object {
     position: absolute;
+    border: 1px solid var(--debug-frame);
 }
 
 .scale-sensor {

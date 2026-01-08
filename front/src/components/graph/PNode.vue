@@ -1,19 +1,31 @@
 <template>
     <div class="p-node">
-            <TransformObject  :anchor-x="'left'" class="port-frame ports">
-                <PPort v-for="port in nodeData.inputs" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'" />
+            <TransformObject :anchor-x="'left'" class="port-frame ports">
+                <PPort v-for="port in nodeData.inputs" :ref="setPortRef(port.id)" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'" 
+                    @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port, event: $event})"
+                    @port-mouseup="$emit('port-mouseup', {nodeId: nodeData.id, port, event: $event})"
+                />
             </TransformObject>
 
             <TransformObject :anchor-x="'right'" class="port-frame ports">
-                <PPort v-for="port in nodeData.outputs" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'" />
+                <PPort v-for="port in nodeData.outputs" :ref="setPortRef(port.id)" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'"
+                    @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port, event: $event})"
+                    @port-mouseup="$emit('port-mouseup', {nodeId: nodeData.id, port, event: $event})"
+                />
             </TransformObject>
 
             <TransformObject :anchor-x="'left'" class="port-frame ports">
-                <PPort :port-data="{id: 1, type: 'control-input'}" :dim="viewLayer !== 'control'" />
+                <PPort :ref="setPortRef(nodeData.controlInput.id)" :port-data="nodeData.controlInput" :dim="viewLayer !== 'control'" 
+                    @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port: nodeData.controlInput, event: $event})"
+                    @port-mouseup="$emit('port-mouseup', {nodeId: nodeData.id, port: nodeData.controlInput, event: $event})"
+                />
             </TransformObject>
 
             <TransformObject :anchor-x="'right'" class="port-frame ports">
-                <PPort :port-data="{id: 1, type: 'control-output'}" :dim="viewLayer !== 'control'" />
+                <PPort :ref="setPortRef(nodeData.controlOutput.id)" :port-data="nodeData.controlOutput" :dim="viewLayer !== 'control'"
+                    @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port: nodeData.controlOutput, event: $event})"
+                    @port-mouseup="$emit('port-mouseup', {nodeId: nodeData.id, port: nodeData.controlOutput, event: $event})"
+                />
             </TransformObject>
         
         <div class="p-node-title">{{ nodeData.title }}</div>
@@ -21,9 +33,28 @@
 </template>
 
 <script setup lang="ts">
-import type { NodeData } from '@/types/PGraph'
+import type { NodeData, PortData } from '@/types/PGraph'
 import TransformObject from '../transform/TransformObject.vue'
 import PPort from './PPort.vue'
+
+import { ref } from 'vue'
+
+const portRefs = ref<Record<string | number, InstanceType<typeof PPort>>>({})
+
+const setPortRef = (id: string | number) => (el: any) => {
+    if (el) portRefs.value[id] = el
+}
+
+const getPortPosition = (port: PortData) => {
+    const ref = portRefs.value[port.id]
+    if (!ref) return { x: 0, y: 0 }
+    const rect = ref.$el.getBoundingClientRect()
+    const screenPos = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+    }
+    return screenPos
+}
 
 withDefaults(defineProps<{
     nodeData: NodeData,
@@ -32,7 +63,17 @@ withDefaults(defineProps<{
     viewLayer: 'control'
 })
 
+defineEmits<{
+    (e: 'port-mousedown', payload: {nodeId: number | string, port: PortData, event: MouseEvent}): void;
+    (e: 'port-mouseup', payload: {nodeId: number | string, port: PortData, event: MouseEvent}): void;
+}>()
+
+defineExpose({
+    getPortPosition
+})
+
 </script>
+
 
 <style scoped>
 .p-node {
@@ -46,7 +87,7 @@ withDefaults(defineProps<{
     border: 1px solid var(--node-border);
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
     user-select: none;
-    width: 80px;
+    width: 50px;
     transition: box-shadow 0.2s, border-color 0.2s;
 }
 
@@ -59,9 +100,9 @@ withDefaults(defineProps<{
     font-size: 11px;
     font-weight: 600;
     color: var(--node-title-color);
-    height: 28px;
+    height: 50px;
     text-align: center;
-    line-height: 28px;
+    line-height: 50px;
     letter-spacing: 0.025em;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 6px 6px 0 0;

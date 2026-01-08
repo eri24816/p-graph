@@ -1,6 +1,6 @@
 <template>
     <div class="transform-frame" ref="frame">
-        <div class="shift" :style="{ transform: `translate(${computedPivotX}px, ${computedPivotY}px)` }">
+        <div class="shift" :style="{ transform: `translate(-50%, -50%) translate(${computedPivotX}px, ${computedPivotY}px)` }">
             <slot />
         </div>
     </div>
@@ -23,7 +23,6 @@ const frame = ref<HTMLDivElement>();
 const getMousePosition = (event: MouseEvent) => {
     const rect = frame.value!.getBoundingClientRect();
     const scale = rect.width / frame.value!.offsetWidth;
-    console.log(event.clientX, rect.left, computedPivotX.value, scale,(event.clientX - rect.left + computedPivotX.value) / scale);
     return {
         x: (event.clientX - rect.left + computedPivotX.value) / scale,
         y: (event.clientY - rect.top + computedPivotY.value) / scale,
@@ -54,6 +53,7 @@ defineExpose({
 <style scoped>
 .transform-frame {
     position: relative;
+    border: 1px solid var(--debug-frame);
 }
 
 .shift {

@@ -11,8 +11,12 @@
     --port-bg: #64748b;
     --port-border: #334155;
     --accent-blue: #3b82f6;
+    --data-flow-color: #24b341;
 }
 
+/* :root {
+    --debug-frame: #3b82f6;
+} */
 body {
     background-color: var(--bg-color);
         color: var(--node-title-color);
