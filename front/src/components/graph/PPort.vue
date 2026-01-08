@@ -1,35 +1,41 @@
 <template>
-  <div class="p-port">
-    <div class="port-knob"></div>
+  <div class="p-port" :class="dim ? 'dim' : ''" :style="hide ? 'display: none' : ''">
   </div>
 </template>
 
 <script setup lang="ts">
 import type { PortData } from '@/types/PGraph';
 
-const props = defineProps<{
-  portData: PortData
-}>();
+const props = withDefaults(defineProps<{
+  portData: PortData,
+  dim?: boolean,
+  hide?: boolean,
+}>(), {
+  dim: false,
+  hide: false,
+});
 </script>
 
 <style scoped>
 .p-port {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.port-knob {
-  width: 8px;
-  height: 8px;
-  background-color: #e0e0e0;
-  border: 1px solid #4b4b4b;
+  width: 10px;
+  height: 10px;
+  background-color: var(--port-bg);
+  border: 2px solid var(--bg-color);
   cursor: pointer;
   border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 0 1px var(--port-border);
 }
 
-.port-knob:hover {
-  background-color: #f5f5f5;
-  box-shadow: 0 0 3px rgba(255, 255, 255, 0.5);
+.p-port:hover {
+  background-color: var(--accent-blue);
+  transform: scale(1.4);
+  box-shadow: 0 0 8px var(--accent-blue);
+}
+
+.dim {
+  opacity: 0.3;
 }
 </style>
+

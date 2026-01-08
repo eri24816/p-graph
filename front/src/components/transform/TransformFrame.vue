@@ -54,10 +54,10 @@ defineExpose({
 <style scoped>
 .transform-frame {
     position: relative;
-    box-shadow: 0 0 0 1px var(--frame-debug);
 }
 
 .shift {
+    position: relative;
     width: 100%;
     height: 100%;
 }
