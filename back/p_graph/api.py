@@ -22,8 +22,21 @@ class API:
             allow_headers=["*"],
         )
 
+        self.app.post("/image_gen")(self.image_gen)
+
+        self.service_scanner = None  # Will be set by main
+
         self.app.post("/execute")(self.execute)
         self.app.post("/interrupt")(self.handle_interrupt)
+        self.app.get("/services")(self.get_services)
+
+    def set_service_scanner(self, scanner):
+        self.service_scanner = scanner
+
+    def get_services(self):
+        if self.service_scanner:
+            return self.service_scanner.scan_services()
+        return []
 
     def execute(self, request: ExecuteRequest):
         self.execution_queue.put(request.code)

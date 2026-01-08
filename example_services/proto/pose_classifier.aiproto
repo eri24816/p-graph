@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package pose_classifier;
+
+import "pose.proto";
+
+message ClassificationRequest {
+  pose.PoseReading pose = 1;
+}
+
+message ClassificationResponse {
+  bool is_upside_down = 1;
+  pose.PoseReading source_pose = 2;
+}
+
+# AI Service Configuration
+# This section is parsed by the service generator
+service ClassifyPose {
+    service_file = "pose_classifier_service"
+    parent_path = "api/v1"
+    path = "classify_pose"
+    protocol = "grpc"
+    port = 8082
+    request = ClassificationRequest
+    response = ClassificationResponse
+}

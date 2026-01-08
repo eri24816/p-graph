@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package pose;
+
+message Point3D {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message PoseReading {
+  Point3D head = 1;
+  Point3D torso = 2;
+}

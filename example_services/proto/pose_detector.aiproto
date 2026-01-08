@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package pose_detector;
+
+import "pose.proto";
+
+message DetectPoseRequest {
+  string frame_id = 1;
+}
+
+message DetectPoseResponse {
+  pose.PoseReading pose = 1;
+}
+
+# AI Service Configuration
+# This section is parsed by the service generator
+service DetectPose {
+    service_file = "pose_detector_service"
+    parent_path = "api/v1"
+    path = "detect_pose"
+    protocol = "grpc"
+    port = 8081
+    request = DetectPoseRequest
+    response = DetectPoseResponse
+}
