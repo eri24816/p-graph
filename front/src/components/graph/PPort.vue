@@ -20,11 +20,12 @@ const props = defineProps<{
 }
 
 .port-knob {
-  width: 12px;
+  width: 8px;
   height: 8px;
   background-color: #e0e0e0;
   border: 1px solid #4b4b4b;
   cursor: pointer;
+  border-radius: 50%;
 }
 
 .port-knob:hover {

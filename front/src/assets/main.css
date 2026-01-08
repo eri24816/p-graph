@@ -1,5 +1,7 @@
 * {
     box-sizing: border-box;
+    --object-debug: #ff0000a0;
+        --frame-debug: #00ff00a0;
 }
 
 body {

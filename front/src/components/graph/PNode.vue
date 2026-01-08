@@ -1,27 +1,25 @@
 <template>
     <div class="p-node">
-        <TransformFrame class="input-port-frame">
-            <TransformObject v-for="(port, idx) in nodeData.inputs" :key="port.id" :x="10 + idx * 32" :y="6">
-                <PPort :port-data="port" />
+        <TransformFrame class="port-frame input-data-port-frame">
+            <TransformObject :x="0" :y="0" class="ports">
+                <PPort v-for="port in nodeData.inputs" :key="port.id" :port-data="port" />
             </TransformObject>
         </TransformFrame>
         <div class="p-node-title">{{ nodeData.title }}</div>
 
-        <div class="p-node-controls">
-        </div>
-        <TransformFrame class="output-port-frame">
-            <TransformObject v-for="(port, idx) in nodeData.outputs" :key="port.id" :x="10 + idx * 32" :y="-4">
-                <PPort :port-data="port" />
+        <TransformFrame class="port-frame output-data-port-frame">
+            <TransformObject :x="0" :y="0" class="ports">
+                <PPort v-for="port in nodeData.outputs" :key="port.id" :port-data="port" />
             </TransformObject>
         </TransformFrame>
     </div>
 </template>
 
 <script setup lang="ts">
-import type { NodeData } from '@/types/PGraph';
-import TransformFrame from '../transform/TransformFrame.vue';
-import TransformObject from '../transform/TransformObject.vue';
-import PPort from './PPort.vue';
+import type { NodeData } from '@/types/PGraph'
+import TransformFrame from '../transform/TransformFrame.vue'
+import TransformObject from '../transform/TransformObject.vue'
+import PPort from './PPort.vue'
 
 defineProps<{
     nodeData: NodeData
@@ -52,19 +50,31 @@ defineProps<{
     line-height: 32px;
 }
 
-.input-port-frame {
-    width: 100%;
-    height: 10px;
-    overflow: hidden;
+.port-frame{
+    width: 0px;
+    height: 100%;
     position: absolute;
-    bottom: 100%;
 }
 
-.output-port-frame {
-    width: 100%;
-    height: 10px;
-    overflow: hidden;
-    position: absolute;
-    top: 100%;
+.ports {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.input-control-port-frame {
+    left: 0;
+}
+
+.output-control-port-frame {
+    right: 0;
+}
+
+.input-data-port-frame {
+    left: 0;
+}
+
+.output-data-port-frame {
+    right: 0;
 }
 </style>

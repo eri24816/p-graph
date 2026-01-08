@@ -46,7 +46,7 @@ class DragNodeHandler {
 
 const nodes = ref<NodeData[]>([
     { id: 1, title: "Node 1", x: 0, y: 0, width: 5, controls: [], inputs: [{ id: 1, type: "input", x: 0, y: 0 }], outputs: [{ id: 1, type: "output", x: 0, y: 0 }, { id: 2, type: "output", x: 0, y: 0 }] },
-    { id: 2, title: "Node 2", x: 150, y: 150, width: 5, controls: [], inputs: [{ id: 1, type: "input", x: 0, y: 0 }], outputs: [{ id: 1, type: "output", x: 0, y: 0 }] },
+    { id: 2, title: "Node 2", x: 150, y: 150, width: 5, controls: [], inputs: [{ id: 1, type: "input", x: 0, y: 0 }, { id: 2, type: "input", x: 0, y: 10 }], outputs: [{ id: 1, type: "output", x: 0, y: 0 }] },
 ]);
 
 const transform = ref<InstanceType<typeof TransformObject>>();
