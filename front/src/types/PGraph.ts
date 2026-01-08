@@ -14,4 +14,13 @@ export type NodeData = {
     y: number
     width: number
     controls: Control[]
+    inputs: PortData[]
+    outputs: PortData[]
+}
+
+export type PortData = {
+    id: number
+    type: string
+    x: number
+    y: number
 }
