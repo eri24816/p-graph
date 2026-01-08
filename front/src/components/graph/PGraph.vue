@@ -1,5 +1,23 @@
 <template>
-    <TransformFrame class="p-graph" @wheel="handleWheel" @mousedown="handleGraphMouseDown" :style="backgroundStyle">
+    <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="handleGraphMouseDown($event, frame)" :style="backgroundStyle">
+        <button class="add-btn" @click.stop="showServiceList = !showServiceList">
+            {{ showServiceList ? 'Close' : 'Add Service' }}
+        </button>
+        <div v-if="showServiceList" class="service-list-container">
+            <div v-for="service in services" :key="service.name" class="service-list-btn" @click="onAddServiceClick(service)">
+                {{ service.name }}
+            </div>
+            <div v-if="services.length === 0" style="padding: 10px;">No services found</div>
+        </div>
+
+        <NodeSettings 
+            v-if="selectedNode"
+            :node="selectedNode" 
+            :is-open="settingsOpen" 
+            @close="handleCloseSettings" 
+            @save="handleSaveSettings"
+        />
+
         <TransformObject ref="frame" :scale="scale" :x="panX" :y="panY">
             <svg class="edges-layer">
                 <PEdge 
@@ -31,9 +49,10 @@
                     :node-data="node" 
                     :view-layer="viewLayer" 
                     class="node" 
-                    @mousedown.stop="handleNodeMouseDown(node, $event)"
+                    @mousedown.stop="handleNodeMouseDown(node, $event, frame)"
                     @port-mousedown="handlePortMouseDown"   
                     @port-mouseup="handlePortMouseUp"
+                    @dblclick.stop="handleOpenSettings(node)"
                 />
             </TransformObject>
         </TransformObject>
@@ -45,10 +64,12 @@ import TransformObject from '../transform/TransformObject.vue';
 import TransformFrame from '../transform/TransformFrame.vue';
 import PGraphNode from './PNode.vue';
 import PEdge from './PEdge.vue';
+import NodeSettings from './NodeSettings.vue';
 
 import { ref, computed, watch, nextTick } from 'vue';
 import type { NodeData, EdgeData, PortData } from '../../types/PGraph';
 import { v4 as uuid } from 'uuid';
+import { useGraph } from '@/composables/useGraph';
 
 const frame = ref<InstanceType<typeof TransformObject>>();
 const nodeRefs = ref<Record<string | number, InstanceType<typeof PGraphNode>>>({})
@@ -57,45 +78,29 @@ const setNodeRef = (id: string | number) => (el: any) => {
     if (el) nodeRefs.value[id] = el
 }
 
-class DragNodeHandler {
-    private node: NodeData;
-    private startNodeX: number;
-    private startNodeY: number;
-    private startMouseX: number;
-    private startMouseY: number;
-    
-    constructor(node: NodeData, event: MouseEvent) {
-        this.node = node;
-        this.startNodeX = node.x;
-        this.startNodeY = node.y;
-        this.startMouseX = frame.value!.getMousePosition(event).x;
-        this.startMouseY = frame.value!.getMousePosition(event).y;
-    }
-
-    update = (event: MouseEvent) => {
-        const mouseX = frame.value!.getMousePosition(event).x;
-        const mouseY = frame.value!.getMousePosition(event).y;
-        this.node.x = this.startNodeX + (mouseX - this.startMouseX);
-        this.node.y = this.startNodeY + (mouseY - this.startMouseY);
-    }
-}
-
-const nodes = ref<NodeData[]>([
-    { id: 1, title: "Node 1", x: 0, y: 0, width: 5, inputs: [{ id: uuid(), type: "input", layer: "data"}], outputs: [{ id: uuid(), type: "output", layer: "data"}, { id: uuid(), type: "output", layer: "data"}], controlInput: {id: uuid(), type: "input", layer: "control"}, controlOutput: {id: uuid(), type: "output", layer: "control"} },
-    { id: 2, title: "Node 2", x: 150, y: 150, width: 5, inputs: [{ id: uuid(), type: "input", layer: "data"}, { id: uuid(), type: "input", layer: "data"}], outputs: [{ id: uuid(), type: "output", layer: "data"}], controlInput: {id: uuid(), type: "input", layer: "control"}, controlOutput: {id: uuid(), type: "output", layer: "control"} },
-]);
+// Use reusable graph logic
+const {
+    nodes,
+    edges,
+    scale,
+    panX,
+    panY,
+    viewLayer,
+    services,
+    handleWheel,
+    handleGraphMouseDown,
+    handleNodeMouseDown,
+    fetchServices,
+    addServiceNode,
+    backgroundStyle
+} = useGraph();
 
 
-const edges = ref<EdgeData[]>([]);
+// Initialize services
+fetchServices();
 
-const scale = ref(1);
-const panX = ref(0);
-const panY = ref(0);
 
-const viewLayer = ref<'control' | 'data'>('control');
-
-// tab to switch view layer
-
+// View Layer Switching
 const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Tab') {
         event.preventDefault();
@@ -104,51 +109,28 @@ const handleKeydown = (event: KeyboardEvent) => {
 }
 document.addEventListener('keydown', handleKeydown);
 
-const handleWheel = (event: WheelEvent) => {
-    const originalMX = frame.value!.getMousePosition(event).x;
-    const originalMY = frame.value!.getMousePosition(event).y;
-    const originalScale = scale.value;
-    scale.value *= Math.exp(event.deltaY / -1000);
-    panX.value = -(originalMX * scale.value - (originalMX * originalScale + panX.value));
-    panY.value = -(originalMY * scale.value - (originalMY * originalScale + panY.value));
-}
 
-const handleNodeMouseDown = (node: NodeData, event: MouseEvent) => {
-    const handler = new DragNodeHandler(node, event);
-    window.addEventListener('mousemove', handler.update);
-    window.addEventListener('mouseup', () => {
-        window.removeEventListener('mousemove', handler.update);
-    });
-}
+// --- Port / Edge Logic (Keep in component for now as it relies on refs heavily) ---
+// This could be moved to composable if we pass refs or methods, but for now its fine here
+// as it deals with specific UI element positions (ports).
 
-class DragGraphHandler {
-    private startMouseX: number;
-    private startMouseY: number;
-
-    constructor(event: MouseEvent) {
-        this.startMouseX = frame.value!.getMousePosition(event).x;
-        this.startMouseY = frame.value!.getMousePosition(event).y;
-    }
-
-    update = (event: MouseEvent) => {
-        const mouseX = frame.value!.getMousePosition(event).x;
-        const mouseY = frame.value!.getMousePosition(event).y;
-        panX.value += (mouseX - this.startMouseX) * scale.value;
-        panY.value += (mouseY - this.startMouseY) * scale.value;
-
-    }
-}
-
-const handleGraphMouseDown = (event: MouseEvent) => {
-    const handler = new DragGraphHandler(event);
-    window.addEventListener('mousemove', handler.update);
-    window.addEventListener('mouseup', () => {
-        window.removeEventListener('mousemove', handler.update);
-    });
-}
-
+const getPortPosition = (nodeId: number | string, port: PortData) => {
+    // We need nodeRefs here which are component specific
+    const nodeCmp = nodeRefs.value[nodeId];
+    if (!nodeCmp || !frame.value) return { x: 0, y: 0 }
+    
+    // We can expose getPortPosition from PNode, and then transform it
+    const screenPos = nodeCmp.getPortPosition(port)
+    return frame.value.screenToLocal(screenPos)
+};
 
 const drawingEdge = ref<{startNodeId: number | string, startPort: PortData, endX: number, endY: number, layer:string} | null>(null);
+
+const drawingStart = computed(() => {
+    if (!drawingEdge.value) return { x: 0, y: 0 };
+    return getPortPosition(drawingEdge.value.startNodeId, drawingEdge.value.startPort);
+});
+
 
 const handlePortMouseDown = (payload: { nodeId: number | string, port: PortData, event: MouseEvent }) => {
     const pos = getPortPosition(payload.nodeId, payload.port);
@@ -179,101 +161,101 @@ const handlePortMouseDown = (payload: { nodeId: number | string, port: PortData,
     window.addEventListener('mouseup', onMouseUp);
 };
 
+const updateEdgePosition = (edge: EdgeData) => {
+    const sourceNode = nodes.value.find(n => n.id === edge.sourceNodeId);
+    const targetNode = nodes.value.find(n => n.id === edge.targetNodeId);
+    
+    if (!sourceNode || !targetNode) return;
+    
+    const sourcePort = [...sourceNode.inputs, ...sourceNode.outputs, sourceNode.controlInput, sourceNode.controlOutput].find(p => p.id === edge.sourcePortId);
+    const targetPort = [...targetNode.inputs, ...targetNode.outputs, targetNode.controlInput, targetNode.controlOutput].find(p => p.id === edge.targetPortId);
 
-const handlePortMouseUp = (payload: {nodeId: number | string, port: PortData, event: MouseEvent}) => {
-    if (drawingEdge.value) {
-        // Prevent connecting to same node
-        if (drawingEdge.value.startNodeId === payload.nodeId) return;
+    if (sourcePort && targetPort) {
+        const pos1 = getPortPosition(edge.sourceNodeId, sourcePort);
+        edge.x1 = pos1.x;
+        edge.y1 = pos1.y;
         
-        // Prevent connecting same type (simple rule: input to output or vice-versa)
-        if (drawingEdge.value.startPort.type == payload.port.type) {
-            drawingEdge.value = null
-            return
-        }
-
-        let newEdge: EdgeData;
-        
-        if (drawingEdge.value.startPort.type == 'output') {
-            newEdge = {
-                id: uuid(),
-                sourceNodeId: drawingEdge.value.startNodeId,
-                sourcePortId: drawingEdge.value.startPort.id,
-                targetNodeId: payload.nodeId,
-                targetPortId: payload.port.id,
-                layer: payload.port.layer,
-                x1: 0,
-                y1: 0,
-                x2: 0,
-                y2: 0,
-            };
-        }
-        else {
-            newEdge = {
-                id: uuid(),
-                sourceNodeId: payload.nodeId,
-                sourcePortId: payload.port.id,
-                targetNodeId: drawingEdge.value.startNodeId,
-                targetPortId: drawingEdge.value.startPort.id,
-                layer: payload.port.layer,
-                x1: 0,
-                y1: 0,
-                x2: 0,
-                y2: 0,
-            };
-        }
-
-        
-        edges.value.push(newEdge);
-        updateEdgePosition(newEdge);
-        
-        drawingEdge.value = null;
+        const pos2 = getPortPosition(edge.targetNodeId, targetPort);
+        edge.x2 = pos2.x;
+        edge.y2 = pos2.y;
     }
-};
+}
 
-const getPortPosition = (nodeId: number | string, port: PortData) => {
-    const screenPos = nodeRefs.value[nodeId].getPortPosition(port)
-    return frame.value!.screenToLocal(screenPos)
-};
-
-const drawingStart = computed(() => {
-    if (!drawingEdge.value) return { x: 0, y: 0 };
-    return getPortPosition(drawingEdge.value.startNodeId, drawingEdge.value.startPort);
-});
-
-const backgroundStyle = computed(() => ({
-    '--scale': scale.value,
-    '--pan-x': `${panX.value}px`,
-    '--pan-y': `${panY.value}px`,
-}));
 const updateAllEdgePositions = () => {
     edges.value.forEach(edge => {
         updateEdgePosition(edge);
     });
 };
 
-const updateEdgePosition = (edge: EdgeData) => {
-    const sourceNode = nodes.value.find(n => n.id === edge.sourceNodeId)!
-    const targetNode = nodes.value.find(n => n.id === edge.targetNodeId)!
-    
-    
-    // Find ports to pass to getPortPosition
-    const sourcePort = [...sourceNode.inputs, ...sourceNode.outputs, sourceNode.controlInput, sourceNode.controlOutput].find(p => p.id === edge.sourcePortId)!
-    const targetPort = [...targetNode.inputs, ...targetNode.outputs, targetNode.controlInput, targetNode.controlOutput].find(p => p.id === edge.targetPortId)!
-    const pos1 = getPortPosition(edge.sourceNodeId, sourcePort);
-    edge.x1 = pos1.x;
-    edge.y1 = pos1.y;
-    
-    const pos2 = getPortPosition(edge.targetNodeId, targetPort);
-    edge.x2 = pos2.x;
-    edge.y2 = pos2.y;
-    console.log(pos1, pos2)
-}
+const handlePortMouseUp = (payload: {nodeId: number | string, port: PortData, event: MouseEvent}) => {
+    if (drawingEdge.value) {
+        if (drawingEdge.value.startNodeId === payload.nodeId) return;
+        if (drawingEdge.value.startPort.type == payload.port.type) {
+            drawingEdge.value = null
+            return
+        }
+
+        let newEdge: EdgeData;
+        const isOutput = drawingEdge.value.startPort.type == 'output';
+        
+        const sourceData = isOutput ? 
+            { nid: drawingEdge.value.startNodeId, pid: drawingEdge.value.startPort.id } : 
+            { nid: payload.nodeId, pid: payload.port.id };
+            
+        const targetData = isOutput ? 
+            { nid: payload.nodeId, pid: payload.port.id } : 
+            { nid: drawingEdge.value.startNodeId, pid: drawingEdge.value.startPort.id };
+
+        newEdge = {
+            id: uuid(),
+            sourceNodeId: sourceData.nid,
+            sourcePortId: sourceData.pid,
+            targetNodeId: targetData.nid,
+            targetPortId: targetData.pid,
+            layer: payload.port.layer,
+            x1: 0, y1: 0, x2: 0, y2: 0,
+        };
+
+        edges.value.push(newEdge);
+        updateEdgePosition(newEdge);
+        drawingEdge.value = null;
+    }
+};
 
 // Sync edges when nodes move or edges are updated
 watch(nodes, () => {
     nextTick(updateAllEdgePositions);
 }, { deep: true });
 
+
+// --- Settings Handling ---
+const showServiceList = ref(false);
+const settingsOpen = ref(false);
+const selectedNode = ref<NodeData | null>(null);
+
+const handleOpenSettings = (node: NodeData) => {
+    selectedNode.value = node;
+    settingsOpen.value = true;
+};
+
+// Autosave behavior implemented in NodeSettings but we still handle close/update
+const handleSaveSettings = (payload: { inputMappings: Record<string, string> }) => {
+    if (selectedNode.value && selectedNode.value.settings) {
+        selectedNode.value.settings.inputMappings = payload.inputMappings;
+    }
+    // No explicit close on save if autosave, but we might want to keep it open?
+    // User asked for autosave. 
+};
+
+const handleCloseSettings = () => {
+    settingsOpen.value = false;
+    selectedNode.value = null;
+};
+
+const onAddServiceClick = (service: any) => {
+    addServiceNode(service);
+    showServiceList.value = false;
+}
 
 </script>
 

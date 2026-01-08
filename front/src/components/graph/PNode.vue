@@ -28,7 +28,9 @@
                 />
             </TransformObject>
         
-        <div class="p-node-title">{{ nodeData.title }}</div>
+        <div class="p-node-title">
+            <span>{{ nodeData.title }}</span>
+        </div>
     </div>
 </template>
 
@@ -106,7 +108,11 @@ defineExpose({
     letter-spacing: 0.025em;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 6px 6px 0 0;
+    display: flex;
+    justify-content: space-between; /* To space title and settings button */
+    padding: 0 5px;
 }
+
 
 .port-frame{
     width: 0px;

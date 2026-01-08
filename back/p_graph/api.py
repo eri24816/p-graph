@@ -22,8 +22,6 @@ class API:
             allow_headers=["*"],
         )
 
-        self.app.post("/image_gen")(self.image_gen)
-
         self.service_scanner = None  # Will be set by main
 
         self.app.post("/execute")(self.execute)

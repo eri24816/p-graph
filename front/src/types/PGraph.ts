@@ -10,6 +10,12 @@ export type NodeData = {
     outputs: PortData[]
     controlInput: PortData
     controlOutput: PortData
+    isService?: boolean
+    serviceSchema?: any
+    settings?: {
+        inputMappings: Record<string, string>
+        outputMappings: Record<string, string>
+    }
 }
 
 export type PortData = {
