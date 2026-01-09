@@ -11,6 +11,7 @@ export type NodeData = {
     controlInput: PortData
     controlOutput: PortData
     isService?: boolean
+    isStart?: boolean
     serviceSchema?: any
     settings?: {
         inputMappings: Record<string, string>

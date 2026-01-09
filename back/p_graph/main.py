@@ -2,7 +2,6 @@ import time
 from p_graph.api import API
 import threading
 import queue
-import signal
 from p_graph.utils import exec_
 
 class Executor:
@@ -28,22 +27,18 @@ class Executor:
 
 class PGraph:
     def __init__(self, scanner=None):
-        self.executor = Executor()
-        self.api = API(execution_queue=self.executor.execution_queue, handle_interrupt=self.handle_interrupt)
-        if scanner:
-            self.api.set_service_scanner(scanner)
-        self.api_thread = threading.Thread(target=self.api.run)
-        self.api_thread.daemon = True
+        self.api = None
+        self.scanner = scanner
+
+    def set_api(self, api):
+        self.api = api
 
     def run(self):
-        self.api_thread.start()
-        self.executor.run()
-        
+        # Deprecated run method, logic moved to main or API
+        pass
 
     def handle_interrupt(self):
-        self.executor.next_sigint_is_from_frontend = True
-        # send a signal to the executor thread
-        signal.raise_signal(signal.SIGINT)
+        pass
 
 def main():
     # Initialize service scanner
@@ -54,6 +49,7 @@ def main():
     proto_dir = os.path.join(root_dir, "example_services", "proto")
 
     from p_graph.service_scanner import ServiceScanner
+    from p_graph.executor.default import DefaultExecutor
 
     scanner = ServiceScanner(proto_dir)
 
@@ -61,8 +57,34 @@ def main():
     services = scanner.scan_services()
     print("Discovered services:", [s["name"] for s in services])
 
+    executor_queue = queue.Queue()
+    interrupt_flag = threading.Event()
+
+    def handle_interrupt():
+        interrupt_flag.set()
+
+    executor = DefaultExecutor()
+
+    api = API(executor_queue, handle_interrupt, executor=executor)
+    api.set_service_scanner(scanner)
+
+    api_thread = threading.Thread(target=api.run)
+    api_thread.start()
+
     pgraph = PGraph(scanner)
-    pgraph.run()
+    pgraph.set_api(api)
+
+    # We don't run pgraph.run() anymore as it blocked with old executor loop
+    # instead we keep main thread alive or join api thread
+
+    # Since DefaultExecutor runs in its own thread when started via API,
+    # we just need to keep the process alive.
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
+        executor.stop()
 
 if __name__ == "__main__":
     main()

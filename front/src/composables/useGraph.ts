@@ -3,10 +3,7 @@ import type { NodeData, EdgeData, PortData } from '@/types/PGraph'
 import { v4 as uuid } from 'uuid'
 
 export function useGraph() {
-    const nodes = ref<NodeData[]>([
-        { id: 1, title: "Node 1", x: 0, y: 0, width: 5, inputs: [{ id: uuid(), type: "input", layer: "data" }], outputs: [{ id: uuid(), type: "output", layer: "data" }, { id: uuid(), type: "output", layer: "data" }], controlInput: { id: uuid(), type: "input", layer: "control" }, controlOutput: { id: uuid(), type: "output", layer: "control" } },
-        { id: 2, title: "Node 2", x: 150, y: 150, width: 5, inputs: [{ id: uuid(), type: "input", layer: "data" }, { id: uuid(), type: "input", layer: "data" }], outputs: [{ id: uuid(), type: "output", layer: "data" }], controlInput: { id: uuid(), type: "input", layer: "control" }, controlOutput: { id: uuid(), type: "output", layer: "control" } },
-    ])
+    const nodes = ref<NodeData[]>([])
     const edges = ref<EdgeData[]>([])
 
     const scale = ref(1)
@@ -14,7 +11,82 @@ export function useGraph() {
     const panY = ref(0)
     const viewLayer = ref<'control' | 'data'>('control')
 
+    const backgroundStyle = computed(() => ({
+        '--scale': scale.value,
+        '--pan-x': `${panX.value}px`,
+        '--pan-y': `${panY.value}px`
+    }))
+
     const services = ref<any[]>([])
+
+    // --- Selection State ---
+    const selectedNodeIds = ref<Set<string | number>>(new Set())
+    const selectedEdgeIds = ref<Set<string>>(new Set())
+
+    const clearSelection = () => {
+        selectedNodeIds.value.clear()
+        selectedEdgeIds.value.clear()
+    }
+
+    const selectNode = (id: string | number, multi: boolean = false) => {
+        if (!multi) clearSelection()
+        selectedNodeIds.value.add(id)
+    }
+
+    const selectEdge = (id: string | number, multi: boolean = false) => {
+        if (!multi) clearSelection()
+        selectedEdgeIds.value.add(String(id))
+    }
+
+    const deleteSelection = () => {
+        const nodesToDelete = new Set(selectedNodeIds.value)
+        const edgesToDelete = new Set(selectedEdgeIds.value)
+
+        // Remove nodes
+        if (nodesToDelete.size > 0) {
+            nodes.value = nodes.value.filter(n => !nodesToDelete.has(n.id))
+            // Remove edges connected to deleted nodes
+            edges.value = edges.value.filter(e =>
+                !nodesToDelete.has(e.sourceNodeId) && !nodesToDelete.has(e.targetNodeId)
+            )
+            selectedNodeIds.value.clear()
+        }
+
+        // Remove edges
+        if (edgesToDelete.size > 0) {
+            edges.value = edges.value.filter(e => !edgesToDelete.has(String(e.id)))
+            selectedEdgeIds.value.clear()
+        }
+    }
+
+    // --- Clipboard ---
+    const clipboard = ref<NodeData[]>([])
+
+    const copySelection = () => {
+        clipboard.value = nodes.value.filter(n => selectedNodeIds.value.has(n.id)).map(n => JSON.parse(JSON.stringify(n)))
+    }
+
+    const pasteSelection = () => {
+        if (clipboard.value.length === 0) return
+
+        clearSelection()
+        clipboard.value.forEach(node => {
+            const newNode = JSON.parse(JSON.stringify(node))
+            newNode.id = uuid()
+            newNode.x += 20
+            newNode.y += 20
+
+            // Regenerate port IDs
+            if (newNode.inputs) newNode.inputs.forEach((p: any) => p.id = uuid())
+            if (newNode.outputs) newNode.outputs.forEach((p: any) => p.id = uuid())
+            if (newNode.controlInput) newNode.controlInput.id = uuid()
+            if (newNode.controlOutput) newNode.controlOutput.id = uuid()
+
+            nodes.value.push(newNode)
+            selectNode(newNode.id, true)
+        })
+    };
+
 
     // --- Graph Interaction Logic ---
 
@@ -31,6 +103,7 @@ export function useGraph() {
     class DragGraphHandler {
         private startMouseX: number
         private startMouseY: number
+        private isDragging: boolean = false
 
         constructor(event: MouseEvent, frameEl: any) {
             this.startMouseX = frameEl.getMousePosition(event).x
@@ -40,17 +113,28 @@ export function useGraph() {
         update = (event: MouseEvent, frameEl: any) => {
             const mouseX = frameEl.getMousePosition(event).x
             const mouseY = frameEl.getMousePosition(event).y
+            if (Math.abs(mouseX - this.startMouseX) > 2 || Math.abs(mouseY - this.startMouseY) > 2) {
+                this.isDragging = true
+            }
             panX.value += (mouseX - this.startMouseX) * scale.value
             panY.value += (mouseY - this.startMouseY) * scale.value
         }
+
+        get dragged() { return this.isDragging }
     }
 
     const handleGraphMouseDown = (event: MouseEvent, frameEl: any) => {
         if (!frameEl) return
+
+        // If clicking background/graph, clear selection unless shift is held?
+        // Usually clicking background clears selection.
         const handler = new DragGraphHandler(event, frameEl)
 
         const onMouseMove = (e: MouseEvent) => handler.update(e, frameEl)
         const onMouseUp = () => {
+            if (!handler.dragged) {
+                clearSelection()
+            }
             window.removeEventListener('mousemove', onMouseMove)
             window.removeEventListener('mouseup', onMouseUp)
         }
@@ -85,6 +169,15 @@ export function useGraph() {
 
     const handleNodeMouseDown = (node: NodeData, event: MouseEvent, frameEl: any) => {
         if (!frameEl) return
+
+        // Selection Logic
+        if (!selectedNodeIds.value.has(node.id)) {
+            if (!event.shiftKey) clearSelection()
+            selectNode(node.id, true)
+        } else if (event.shiftKey) {
+            // Deselect? Or just keep? For now keep simple
+        }
+
         const handler = new DragNodeHandler(node, event, frameEl)
         const onMouseMove = (e: MouseEvent) => handler.update(e, frameEl)
         const onMouseUp = () => {
@@ -141,12 +234,119 @@ export function useGraph() {
         nodes.value.push(newNode)
     }
 
-    // --- Utils ---
-    const backgroundStyle = computed(() => ({
-        '--scale': scale.value,
-        '--pan-x': `${panX.value}px`,
-        '--pan-y': `${panY.value}px`,
-    }))
+    const addStartNode = () => {
+        // Enforce single start node? For now, yes
+        const existingStart = nodes.value.find(n => n.isStart)
+        if (existingStart) {
+            selectNode(existingStart.id)
+            return
+        }
+
+        const newNode: NodeData = {
+            id: uuid(),
+            title: "Start",
+            x: 50,
+            y: 50,
+            width: 100,
+            inputs: [],
+            outputs: [],
+            controlInput: { id: uuid(), type: 'input', layer: 'control' }, // Maybe no input for start?
+            controlOutput: { id: uuid(), type: 'output', layer: 'control' },
+            isStart: true,
+            settings: { inputMappings: {}, outputMappings: {} }
+        }
+        nodes.value.push(newNode)
+    }
+
+    // --- Serialization & Deployment ---
+
+    const serializeGraph = () => {
+        const serializedNodes = nodes.value.map(node => ({
+            id: node.id,
+            title: node.title,
+            type: node.isService ? node.title : (node.isStart ? 'start' : 'Generic'),
+            is_start: !!node.isStart,
+            service_schema: node.serviceSchema ? node.serviceSchema : null,
+            inputs: node.settings?.inputMappings || {},
+            // Outputs are determined by service schema, not explicitly stored in settings usually,
+            // but we can pass them if needed. For now, just inputs are enough for execution.
+        }))
+
+        const serializedEdges = edges.value.map(edge => ({
+            source: edge.sourceNodeId,
+            source_port: edge.sourcePortId, // In real execution we might need port names, but IDs are safer for internal linking
+            target: edge.targetNodeId,
+            target_port: edge.targetPortId
+        }))
+
+        return {
+            nodes: serializedNodes,
+            edges: serializedEdges
+        }
+    }
+
+    const deployGraph = async () => {
+        const graphData = serializeGraph()
+        try {
+            const res = await fetch('http://localhost:8000/deploy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(graphData)
+            })
+            if (res.ok) {
+                console.log("Graph deployed successfully")
+                // Maybe trigger start immediately?
+                await startGraph()
+            } else {
+                console.error("Failed to deploy graph")
+            }
+        } catch (e) {
+            console.error("Error deploying graph", e)
+        }
+    }
+
+    const startGraph = async () => {
+        try {
+            await fetch('http://localhost:8000/start', { method: 'POST' })
+            startPolling()
+        } catch (e) {
+            console.error("Error starting graph", e)
+        }
+    }
+
+    // --- Polling ---
+    const activeNodeId = ref<string | null>(null)
+    let pollingInterval: any = null
+
+    const startPolling = () => {
+        if (pollingInterval) clearInterval(pollingInterval)
+        pollingInterval = setInterval(async () => {
+            try {
+                const res = await fetch('http://localhost:8000/state')
+                if (res.ok) {
+                    const state = await res.json()
+                    activeNodeId.value = state.current_node_id
+                    if (!state.running) {
+                        stopPolling()
+                    }
+                }
+            } catch (e) {
+                console.error("Polling error", e)
+                stopPolling()
+            }
+        }, 500)
+    }
+
+    const stopPolling = () => {
+        if (pollingInterval) {
+            clearInterval(pollingInterval)
+            pollingInterval = null
+        }
+        activeNodeId.value = null
+    };
+
 
     return {
         nodes,
@@ -161,6 +361,17 @@ export function useGraph() {
         handleNodeMouseDown,
         fetchServices,
         addServiceNode,
-        backgroundStyle
+        backgroundStyle,
+        deployGraph,
+        activeNodeId,
+        selectedNodeIds,
+        selectedEdgeIds,
+        selectNode,
+        selectEdge,
+        clearSelection,
+        deleteSelection,
+        copySelection,
+        pasteSelection,
+        addStartNode
     }
 }

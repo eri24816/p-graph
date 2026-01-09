@@ -72,10 +72,11 @@ class ServiceScanner:
                 "name": service_name,
                 "path": "",
                 "protocol": "grpc",
+                "python_path": None,  # Will be populated if service_file or python_path is present
                 "request": {},
                 "response": {},
                 "input_fields": {},
-                "output_fields": {}
+                "output_fields": {},
             }
             
             # Parse properties: key = value or key = identifier

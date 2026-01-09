@@ -1,24 +1,25 @@
 <template>
-    <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="handleGraphMouseDown($event, frame)" :style="backgroundStyle">
-        <button class="add-btn" @click.stop="showServiceList = !showServiceList">
-            {{ showServiceList ? 'Close' : 'Add Service' }}
-        </button>
-        <div v-if="showServiceList" class="service-list-container">
-            <div v-for="service in services" :key="service.name" class="service-list-btn" @click="onAddServiceClick(service)">
-                {{ service.name }}
-            </div>
-            <div v-if="services.length === 0" style="padding: 10px;">No services found</div>
-        </div>
-
-        <NodeSettings 
-            v-if="selectedNode"
-            :node="selectedNode" 
-            :is-open="settingsOpen" 
-            @close="handleCloseSettings" 
-            @save="handleSaveSettings"
+    <div class="pgraph-container">
+        <SidebarPalette 
+            :services="services" 
+            @add-service="addServiceNode"
+            @add-start-node="addStartNode"
         />
+        
+        <div class="graph-area">
+            <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="handleGraphMouseDown($event, frame)" :style="backgroundStyle">
+                
+                <button class="run-btn" @click="deployGraph">Run</button>
 
-        <TransformObject ref="frame" :scale="scale" :x="panX" :y="panY">
+                <NodeSettings 
+                    v-if="selectedNode"
+                    :node="selectedNode" 
+                    :is-open="settingsOpen" 
+                    @close="handleCloseSettings" 
+                    @save="handleSaveSettings"
+                />
+
+                <TransformObject ref="frame" :scale="scale" :x="panX" :y="panY">
             <svg class="edges-layer">
                 <PEdge 
                     v-for="edge in edges" 
@@ -53,10 +54,14 @@
                     @port-mousedown="handlePortMouseDown"   
                     @port-mouseup="handlePortMouseUp"
                     @dblclick.stop="handleOpenSettings(node)"
+                    :is-active="activeNodeId === node.id"
+                    :is-selected="selectedNodeIds.has(node.id)"
                 />
             </TransformObject>
         </TransformObject>
     </TransformFrame>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -65,6 +70,7 @@ import TransformFrame from '../transform/TransformFrame.vue';
 import PGraphNode from './PNode.vue';
 import PEdge from './PEdge.vue';
 import NodeSettings from './NodeSettings.vue';
+import SidebarPalette from './SidebarPalette.vue';
 
 import { ref, computed, watch, nextTick } from 'vue';
 import type { NodeData, EdgeData, PortData } from '../../types/PGraph';
@@ -92,7 +98,14 @@ const {
     handleNodeMouseDown,
     fetchServices,
     addServiceNode,
-    backgroundStyle
+    backgroundStyle,
+    deployGraph,
+    activeNodeId,
+    selectedNodeIds,
+    deleteSelection,
+    copySelection,
+    pasteSelection,
+    addStartNode
 } = useGraph();
 
 
@@ -100,11 +113,26 @@ const {
 fetchServices();
 
 
-// View Layer Switching
+// View Layer Switching & Shortcuts
 const handleKeydown = (event: KeyboardEvent) => {
+    // Ignore if input is focused
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+
     if (event.key === 'Tab') {
         event.preventDefault();
         viewLayer.value = viewLayer.value === 'control' ? 'data' : 'control';
+    }
+    
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+        deleteSelection();
+    }
+
+    if (event.ctrlKey && event.key === 'c') {
+        copySelection();
+    }
+
+    if (event.ctrlKey && event.key === 'v') {
+        pasteSelection();
     }
 }
 document.addEventListener('keydown', handleKeydown);
@@ -229,7 +257,6 @@ watch(nodes, () => {
 
 
 // --- Settings Handling ---
-const showServiceList = ref(false);
 const settingsOpen = ref(false);
 const selectedNode = ref<NodeData | null>(null);
 
@@ -252,15 +279,26 @@ const handleCloseSettings = () => {
     selectedNode.value = null;
 };
 
-const onAddServiceClick = (service: any) => {
-    addServiceNode(service);
-    showServiceList.value = false;
-}
 
 </script>
 
 
+
+
 <style scoped>
+.pgraph-container {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.graph-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
 .p-graph {
     width: 100%;
     height: 100%;
@@ -280,5 +318,23 @@ const onAddServiceClick = (service: any) => {
     overflow: visible;
 }
 
+.run-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px; /* Moved to right */
+    left: auto;
+    z-index: 100;
+    padding: 8px 24px;
+    background: #2ea043;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
 
+.run-btn:hover {
+    background: #238636;
+}
 </style>
