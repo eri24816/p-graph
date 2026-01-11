@@ -1,5 +1,6 @@
 <template>
     <div ref="nodeEl" class="p-node" :class="{ 'active-node': isActive, 'selected-node': isSelected, 'start-node': nodeData.type === 'start' }">
+            <ValidationIcons :issues="validationIssues" />
             <TransformObject :anchor-x="'left'" class="port-frame ports">
                 <PPort v-for="port in nodeData.inputs" :ref="setPortRef(port.id)" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'" 
                     @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port, event: $event})"
@@ -40,8 +41,10 @@
 
 <script setup lang="ts">
 import type { NodeData, PortData } from '@/types/PGraph'
+import type { ValidationIssue } from '@/composables/useGraphValidation'
 import TransformObject from '../transform/TransformObject.vue'
 import PPort from './PPort.vue'
+import ValidationIcons from './ValidationIcons.vue'
 
 import { ref } from 'vue'
 
@@ -72,11 +75,13 @@ withDefaults(defineProps<{
     nodeData: NodeData,
     viewLayer: 'control' | 'data',
     isActive?: boolean,
-    isSelected?: boolean
+    isSelected?: boolean,
+    validationIssues?: ValidationIssue[]
 }>(), {
     viewLayer: 'control',
     isActive: false,
-    isSelected: false
+    isSelected: false,
+    validationIssues: () => []
 })
 
 defineEmits<{
@@ -94,6 +99,7 @@ defineExpose({
 
 <style scoped>
 .p-node {
+    position: relative;
     display: flex;
     align-items: stretch;
     justify-content: space-between;

@@ -21,7 +21,7 @@
             </div>
         </div>
 
-        <NodeSettings v-if="selectedNode" :node="selectedNode" :is-open="settingsOpen" @close="handleCloseSettings"
+        <NodeSettings v-if="selectedNode" :node="selectedNode" :all-nodes="nodes" :is-open="settingsOpen" @close="handleCloseSettings"
             @save="handleSaveSettings" />
 
         <div class="graph-area">
@@ -50,7 +50,8 @@
                             @mousedown.stop="editor.handleNodeMouseDown(node, $event, frame)"
                             @port-mousedown="handlePortMouseDown" @port-mouseup="handlePortMouseUp"
                             @dblclick.stop="handleOpenSettings(node)" :is-active="activeNodeId === node.id"
-                            :is-selected="editor.selectedNodeIds.value.has(node.id)" />
+                            :is-selected="editor.selectedNodeIds.value.has(node.id)"
+                            :validation-issues="getNodeIssues(node.id)" />
                     </TransformObject>
                 </TransformObject>
             </TransformFrame>
@@ -71,6 +72,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import type { NodeData, EdgeData, PortData } from '../../types/PGraph'
 import { v4 as uuid } from 'uuid'
 import { useGraph } from '@/composables/useGraph'
+import { useGraphValidation } from '@/composables/useGraphValidation'
 
 const frame = ref<InstanceType<typeof TransformObject>>()
 const nodeRefs = ref<Record<string | number, InstanceType<typeof PGraphNode>>>({})
@@ -110,6 +112,10 @@ const {
     listGraphs,
     editor
 } = graph
+
+// Use validation logic
+const validation = useGraphValidation(nodes, edges)
+const { getNodeIssues } = validation
 
 // Initialize services
 fetchFunctions()
@@ -308,9 +314,14 @@ const handleOpenSettings = (node: NodeData) => {
 }
 
 // Autosave behavior implemented in NodeSettings but we still handle close/update
-const handleSaveSettings = (payload: { inputVariables: Record<string, string> }) => {
-    if (selectedNode.value && selectedNode.value.inputVariables) {
-        selectedNode.value.inputVariables = payload.inputVariables
+const handleSaveSettings = (payload: { nodeName?: string, inputMappings: Record<string, string> }) => {
+    if (selectedNode.value) {
+        if (payload.nodeName !== undefined) {
+            selectedNode.value.nodeName = payload.nodeName
+        }
+        if (selectedNode.value.inputVariables) {
+            selectedNode.value.inputVariables = payload.inputMappings
+        }
     }
 }
 
