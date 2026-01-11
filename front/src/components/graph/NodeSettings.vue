@@ -2,7 +2,7 @@
     <div v-if="isOpen" class="node-settings-overlay" @click.self="$emit('close')">
         <div class="node-settings-modal">
             <div class="header">
-                <h3>Settings: {{ node.nodeName }}</h3>
+                <h3>{{ node.nodeName }}</h3>
                 <button class="close-btn" @click="$emit('close')">×</button>
             </div>
             

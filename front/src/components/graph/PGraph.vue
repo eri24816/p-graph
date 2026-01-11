@@ -2,12 +2,12 @@
     <div class="pgraph-container">
         <SidebarPalette 
             :functions="functions" 
-            @add-function-node="addFunctionNode"
-            @add-start-node="addStartNode"
+            @addFunctionNode="addFunctionNode"
+            @addStartNode="addStartNode"
         />
         
         <div class="graph-area">
-            <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="handleGraphMouseDown($event, frame)" :style="backgroundStyle">
+            <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="onBackgroundMouseDown($event)" :style="backgroundStyle">
                 
                 <button class="run-btn" @click="deployGraph">Run</button>
                 <div class="file-controls">
@@ -37,19 +37,22 @@
                 />
 
                 <TransformObject ref="frame" :scale="scale" :x="panX" :y="panY">
+            <RectSelection :rect="editor.selectionRect.value" :visible="editor.isRectSelecting.value" />
             <svg class="edges-layer">
-                <PEdge 
-                    v-for="edge in edges" 
-                    :key="edge.id" 
+                <PEdge
+                    v-for="edge in edges"
+                    :key="edge.id"
                     :edge="edge"
                     :source-node="nodes.find(n => n.id === edge.sourceNodeId)"
                     :target-node="nodes.find(n => n.id === edge.targetNodeId)"
                     :dim = "edge.layer == 'control'? viewLayer == 'data': viewLayer == 'control'"
                     :hide = "edge.layer == 'control'? false: viewLayer == 'control'"
+                    :is-selected="editor.selectedEdgeIds.value.has(edge.id)"
                     :x1="edge.x1"
                     :y1="edge.y1"
                     :x2="edge.x2"
                     :y2="edge.y2"
+                    @click="editor.handleEdgeClick"
                 />
                 <PEdge 
                     v-if="drawingEdge" 
@@ -62,17 +65,17 @@
                 />
             </svg>
             <TransformObject v-for="node in nodes" :key="node.id" :x="node.x" :y="node.y">
-                <PGraphNode 
+                <PGraphNode
                     :ref="setNodeRef(node.id)"
-                    :node-data="node" 
-                    :view-layer="viewLayer" 
-                    class="node" 
-                    @mousedown.stop="handleNodeMouseDown(node, $event, frame)"
-                    @port-mousedown="handlePortMouseDown"   
+                    :node-data="node"
+                    :view-layer="viewLayer"
+                    class="node"
+                    @mousedown.stop="editor.handleNodeMouseDown(node, $event, frame)"
+                    @port-mousedown="handlePortMouseDown"
                     @port-mouseup="handlePortMouseUp"
                     @dblclick.stop="handleOpenSettings(node)"
                     :is-active="activeNodeId === node.id"
-                    :is-selected="selectedNodeIds.has(node.id)"
+                    :is-selected="editor.selectedNodeIds.value.has(node.id)"
                 />
             </TransformObject>
         </TransformObject>
@@ -88,6 +91,7 @@ import PGraphNode from './PNode.vue';
 import PEdge from './PEdge.vue';
 import NodeSettings from './NodeSettings.vue';
 import SidebarPalette from './SidebarPalette.vue';
+import RectSelection from './RectSelection.vue';
 
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import type { NodeData, EdgeData, PortData } from '../../types/PGraph';
@@ -102,6 +106,7 @@ const setNodeRef = (id: string | number) => (el: any) => {
 }
 
 // Use reusable graph logic
+const graph = useGraph();
 const {
     nodes,
     edges,
@@ -112,22 +117,18 @@ const {
     functions,
     handleWheel,
     handleGraphMouseDown,
-    handleNodeMouseDown,
     fetchFunctions,
     addFunctionNode,
     backgroundStyle,
     deployGraph,
     activeNodeId,
-    selectedNodeIds,
-    deleteSelection,
-    copySelection,
-    pasteSelection,
     addStartNode,
     loadFromLocalStorage,
     saveGraphToDisk,
     loadGraphFromDisk,
-    listGraphs
-} = useGraph();
+    listGraphs,
+    editor
+} = graph;
 
 
 // Initialize services
@@ -162,6 +163,19 @@ const confirmLoad = async (filename: string) => {
 }
 
 
+// Background click handler
+const onBackgroundMouseDown = (event: MouseEvent) => {
+    if (!frame.value) return;
+
+    // Use editor's background handler for selection
+    if (event.shiftKey || (!event.ctrlKey && !event.metaKey)) {
+        editor.handleBackgroundMouseDown(event, frame.value);
+    } else {
+        // Fall back to pan handler
+        handleGraphMouseDown(event, frame.value);
+    }
+}
+
 // View Layer Switching & Shortcuts
 const handleKeydown = (event: KeyboardEvent) => {
     // Ignore if input is focused
@@ -170,19 +184,11 @@ const handleKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Tab') {
         event.preventDefault();
         viewLayer.value = viewLayer.value === 'control' ? 'data' : 'control';
-    }
-    
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-        deleteSelection();
+        return;
     }
 
-    if (event.ctrlKey && event.key === 'c') {
-        copySelection();
-    }
-
-    if (event.ctrlKey && event.key === 'v') {
-        pasteSelection();
-    }
+    // Let editor handle other keyboard shortcuts
+    editor.handleKeyDown(event);
 }
 document.addEventListener('keydown', handleKeydown);
 

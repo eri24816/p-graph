@@ -2,7 +2,7 @@
     <div class="sidebar-palette">
         <h3>System</h3>
         <div class="function-list" style="flex: 0 0 auto; min-height: 50px;">
-             <div class="function-item" @click="$emit('add-start-node')">
+             <div class="function-item" @click="$emit('addStartNode')">
                 <div class="function-name">Start Node 🚩</div>
              </div>
         </div>
@@ -13,9 +13,9 @@
                 v-for="func in functions" 
                 :key="func.function_name" 
                 class="function-item" 
-                @click="$emit('add-function-node', func)"
+                @click="$emit('addFunctionNode', func)"
                 draggable="true"
-                @dragstart="$emit('drag-function-node', $event, func)"
+                @dragstart="$emit('dragFunctionNode', $event, func)"
             >
                 <div class="function-name">{{ func.function_name }}</div>
                 <div class="function-type" v-if="func.type">Type: {{ func.type }}</div>
@@ -32,7 +32,7 @@ defineProps<{
     functions: any[]
 }>();
 
-defineEmits(['add-function-node', 'drag-function-node', 'add-start-node']);
+defineEmits(['addFunctionNode', 'dragFunctionNode', 'addStartNode']);
 </script>
 
 <style scoped>

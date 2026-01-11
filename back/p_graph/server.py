@@ -1,3 +1,4 @@
+from pathlib import Path
 from p_graph.data_structures import FunctionConfig
 from p_graph.executor.base import Executor
 from fastapi import FastAPI
@@ -6,6 +7,9 @@ from pydantic import BaseModel
 import os
 import json
 import uvicorn
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ExecuteRequest(BaseModel):
@@ -47,6 +51,8 @@ class Server:
         self.app.post("/graphs/save")(self.save_graph)
         self.app.get("/graphs/load/{name}")(self.load_graph)
 
+        self.uvicorn_server = uvicorn.Server(uvicorn.Config(self.app, host="0.0.0.0", port=8000))
+
     def get_functions(self):
         return self.functions
 
@@ -79,21 +85,21 @@ class Server:
         return {"status": "no_executor"}
 
     def run(self):
-        uvicorn.run(self.app, host="0.0.0.0", port=8000)
+        self.uvicorn_server.run()
+
+    def stop(self):
+        self.uvicorn_server.should_exit = True
 
     # --- Graph Persistence ---
 
     def ensure_graphs_dir(self):
-        graphs_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "saved_graphs"
-        )
-        if not os.path.exists(graphs_dir):
-            os.makedirs(graphs_dir)
+        graphs_dir = Path('saved_graphs')
+        graphs_dir.mkdir(exist_ok=True)
         return graphs_dir
 
     def list_graphs(self):
         graphs_dir = self.ensure_graphs_dir()
-        files = [f for f in os.listdir(graphs_dir) if f.endswith(".json")]
+        files = [f.name for f in graphs_dir.iterdir() if f.is_file() and f.suffix == ".json"]
         return files
 
     def save_graph(self, request: dict):
@@ -104,7 +110,7 @@ class Server:
             return {"error": "Missing name or graph data"}
 
         graphs_dir = self.ensure_graphs_dir()
-        file_path = os.path.join(graphs_dir, f"{name}.json")
+        file_path = graphs_dir / f"{name}.json"
 
         with open(file_path, "w") as f:
             json.dump(graph_data, f, indent=2)
@@ -113,9 +119,12 @@ class Server:
 
     def load_graph(self, name: str):
         graphs_dir = self.ensure_graphs_dir()
-        file_path = os.path.join(graphs_dir, f"{name}.json")
+        file_path = graphs_dir / f"{name}"
 
-        if not os.path.exists(file_path):
+        logger.info(f"Loading graph from {file_path}")
+
+        if not file_path.exists():
+            logger.warning(f"Graph file {file_path} not found.")
             return {"error": "File not found"}
 
         with open(file_path, "r") as f:

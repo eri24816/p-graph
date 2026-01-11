@@ -1,10 +1,6 @@
 <template>
     <div class="main" @mousemove="onMouseMove" @wheel="onWheel">
-        <!-- <div>{{ message }}</div>
-        <textarea v-model="codeArea" placeholder="Enter your code here"></textarea>
-        <button @click="executeCode">Execute Code</button>
-        <button @click="interruptExecution">Interrupt Execution</button> -->
-        <!-- <PGraph  class="graph"/> -->
+
         <PGraph class="graph"/>
     </div>
 </template>

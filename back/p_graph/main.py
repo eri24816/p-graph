@@ -40,9 +40,12 @@ def main():
     logger.info(f"Discovered functions: {functions}")
     server = Server(executor=executor, functions=functions)
 
-    server_thread = threading.Thread(target=server.run)
+    server_thread = threading.Thread(target=server.run, daemon=True)
     server_thread.start()
-    executor.run()
+    # executor.run()
+    input("Press Enter to stop the server...\n")
+    server.stop()
+    server_thread.join()
 
 
 if __name__ == "__main__":
