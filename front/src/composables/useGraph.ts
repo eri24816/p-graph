@@ -1,6 +1,7 @@
 import { ref, computed, nextTick, watch } from 'vue'
-import type { NodeData, EdgeData, PortData } from '@/types/PGraph'
+import type { NodeData, EdgeData, PortData, FunctionConfig } from '@/types/PGraph'
 import { v4 as uuid } from 'uuid'
+import { get, post } from '@/util'
 
 export function useGraph() {
     const nodes = ref<NodeData[]>([])
@@ -17,7 +18,7 @@ export function useGraph() {
         '--pan-y': `${panY.value}px`
     }))
 
-    const services = ref<any[]>([])
+    const functions = ref<FunctionConfig[]>([])
 
     // --- Selection State ---
     const selectedNodeIds = ref<Set<string | number>>(new Set())
@@ -188,55 +189,61 @@ export function useGraph() {
         window.addEventListener('mouseup', onMouseUp)
     }
 
-    // --- Services ---
-    const fetchServices = async () => {
+    // --- functions ---
+    const fetchFunctions = async () => {
         try {
-            const res = await fetch('http://localhost:8000/services')
+            const res = await fetch('http://localhost:8000/functions')
             if (res.ok) {
-                services.value = await res.json()
+                functions.value = await res.json()
             }
         } catch (e) {
-            console.error("Failed to fetch services", e)
+            console.error("Failed to fetch functions", e)
         }
     }
 
-    const addServiceNode = (service: any) => {
+    const addFunctionNode = (functionConfig: FunctionConfig) => {
         const nodeId = uuid()
         const newNode: NodeData = {
             id: nodeId,
-            title: service.name,
-            x: 100 + Math.random() * 100,
-            y: 100 + Math.random() * 100,
+            nodeName: getNewNodeName(functionConfig.function_name),
+            x: Math.random() * 100,
+            y: Math.random() * 100,
             width: 150,
             inputs: [],
             outputs: [],
-            controlInput: { id: uuid(), type: 'input', layer: 'control' },
-            controlOutput: { id: uuid(), type: 'output', layer: 'control' },
-            isService: true,
-            serviceSchema: service,
-            settings: {
-                inputMappings: {},
-                outputMappings: {}
-            }
+            controlInput: {name: 'control', id: uuid(), type: 'input', layer: 'control', dataType: 'None'},
+            controlOutput: {name: 'control', id: uuid(), type: 'output', layer: 'control', dataType: 'None' },
+            type: 'function',
+            functionConfig: functionConfig,
+            inputVariables: {}
         }
 
-        if (service.input_fields) {
-            Object.keys(service.input_fields).forEach(key => {
-                newNode.inputs.push({ id: uuid(), type: 'input', layer: 'data', name: key } as any)
-            })
-        }
-        if (service.output_fields) {
-            Object.keys(service.output_fields).forEach(key => {
-                newNode.outputs.push({ id: uuid(), type: 'output', layer: 'data', name: key } as any)
-            })
-        }
+    Object.entries(functionConfig.inputs).forEach(([key, value]) => {
+        newNode.inputs.push({ id: uuid(), type: 'input', layer: 'data', name: key, dataType: value })
+    })
+    Object.entries(functionConfig.outputs).forEach(([key, value]) => {
+        newNode.outputs.push({ id: uuid(), type: 'output', layer: 'data', name: key, dataType: value })
+    })
 
         nodes.value.push(newNode)
     }
 
+    const getNewNodeName = (prefix: string) => {
+        /*
+        Selects prefix, prefix 1, prefix 2, etc. until it finds a unique name.
+        */
+        let name = prefix
+        let i = 1
+        while (nodes.value.some(n => n.nodeName === name)) {
+            name = `${prefix}-${i}`
+            i++
+        }
+        return name
+    }
+
     const addStartNode = () => {
         // Enforce single start node? For now, yes
-        const existingStart = nodes.value.find(n => n.isStart)
+        const existingStart = nodes.value.find(n => n.type === 'start')
         if (existingStart) {
             selectNode(existingStart.id)
             return
@@ -244,16 +251,16 @@ export function useGraph() {
 
         const newNode: NodeData = {
             id: uuid(),
-            title: "Start",
+            nodeName: getNewNodeName("Start"),
             x: 50,
             y: 50,
             width: 100,
             inputs: [],
             outputs: [],
-            controlInput: { id: uuid(), type: 'input', layer: 'control' }, // Maybe no input for start?
-            controlOutput: { id: uuid(), type: 'output', layer: 'control' },
-            isStart: true,
-            settings: { inputMappings: {}, outputMappings: {} }
+            controlInput: { name: 'control', id: uuid(), type: 'input', layer: 'control', dataType: 'None' },
+            controlOutput: { name: 'control', id: uuid(), type: 'output', layer: 'control', dataType: 'None' },
+            type: 'start',
+            inputVariables: {}
         }
         nodes.value.push(newNode)
     }
@@ -263,18 +270,14 @@ export function useGraph() {
     const serializeGraph = () => {
         const serializedNodes = nodes.value.map(node => ({
             id: node.id,
-            title: node.title,
-            type: node.isService ? node.title : (node.isStart ? 'start' : 'Generic'),
-            is_start: !!node.isStart,
-            service_schema: node.serviceSchema ? node.serviceSchema : null,
-            inputs: node.settings?.inputMappings || {},
-            // Outputs are determined by service schema, not explicitly stored in settings usually,
-            // but we can pass them if needed. For now, just inputs are enough for execution.
+            title: node.nodeName,
+            type: node.type,
+            inputVariables: node.inputVariables,
         }))
 
         const serializedEdges = edges.value.map(edge => ({
             source: edge.sourceNodeId,
-            source_port: edge.sourcePortId, // In real execution we might need port names, but IDs are safer for internal linking
+            source_port: edge.sourcePortId,
             target: edge.targetNodeId,
             target_port: edge.targetPortId
         }))
@@ -287,33 +290,12 @@ export function useGraph() {
 
     const deployGraph = async () => {
         const graphData = serializeGraph()
-        try {
-            const res = await fetch('http://localhost:8000/deploy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(graphData)
-            })
-            if (res.ok) {
-                console.log("Graph deployed successfully")
-                // Maybe trigger start immediately?
-                await startGraph()
-            } else {
-                console.error("Failed to deploy graph")
-            }
-        } catch (e) {
-            console.error("Error deploying graph", e)
-        }
+        await post('http://localhost:8000/deploy', graphData)
     }
 
     const startGraph = async () => {
-        try {
-            await fetch('http://localhost:8000/start', { method: 'POST' })
-            startPolling()
-        } catch (e) {
-            console.error("Error starting graph", e)
-        }
+        await post('http://localhost:8000/start')
+        startPolling()
     }
 
     // --- Polling ---
@@ -348,6 +330,68 @@ export function useGraph() {
     };
 
 
+    // --- Persistence ---
+
+    const serializeGraphState = () => {
+        return {
+            nodes: JSON.parse(JSON.stringify(nodes.value)),
+            edges: JSON.parse(JSON.stringify(edges.value)),
+            transform: { scale: scale.value, panX: panX.value, panY: panY.value }
+        }
+    }
+
+    const loadGraphState = (data: any) => {
+        if (!data) return
+        nodes.value = data.nodes || []
+        edges.value = data.edges || []
+        if (data.transform) {
+            scale.value = data.transform.scale
+            panX.value = data.transform.panX
+            panY.value = data.transform.panY
+        }
+    }
+
+    // Local Storage
+    const LOCAL_STORAGE_KEY = 'p-graph-autosave'
+
+    const saveToLocalStorage = () => {
+        const data = serializeGraphState()
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data))
+    }
+
+    const loadFromLocalStorage = () => {
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY)
+        if (saved) {
+            try {
+                const data = JSON.parse(saved)
+                loadGraphState(data)
+                console.log("Restored graph from local storage")
+            } catch (e) {
+                console.error("Failed to restore from local storage", e)
+            }
+        }
+    }
+
+    // Disk I/O
+    const listGraphs = async () => {
+        return await get('http://localhost:8000/graphs')
+    }
+
+    const saveGraphToDisk = async (filename: string) => {
+        const data = serializeGraphState()
+        await post('http://localhost:8000/graphs/save', { name: filename, graph: data })
+    }
+
+    const loadGraphFromDisk = async (filename: string) => {
+        loadGraphState(await get(`http://localhost:8000/graphs/load/${filename}`))
+    }
+
+    // Autosave Watcher
+    watch([nodes, edges, scale, panX, panY], () => {
+        saveToLocalStorage()
+    }, { deep: true })
+
+
     return {
         nodes,
         edges,
@@ -355,12 +399,12 @@ export function useGraph() {
         panX,
         panY,
         viewLayer,
-        services,
+        functions,
         handleWheel,
         handleGraphMouseDown,
         handleNodeMouseDown,
-        fetchServices,
-        addServiceNode,
+        fetchFunctions,
+        addFunctionNode,
         backgroundStyle,
         deployGraph,
         activeNodeId,
@@ -372,6 +416,11 @@ export function useGraph() {
         deleteSelection,
         copySelection,
         pasteSelection,
-        addStartNode
+        addStartNode,
+        // Persistence
+        loadFromLocalStorage,
+        saveGraphToDisk,
+        loadGraphFromDisk,
+        listGraphs
     }
 }

@@ -1,26 +1,26 @@
 <template>
     <div class="sidebar-palette">
         <h3>System</h3>
-        <div class="service-list" style="flex: 0 0 auto; min-height: 50px;">
-             <div class="service-item" @click="$emit('add-start-node')">
-                <div class="service-name">Start Node 🚩</div>
+        <div class="function-list" style="flex: 0 0 auto; min-height: 50px;">
+             <div class="function-item" @click="$emit('add-start-node')">
+                <div class="function-name">Start Node 🚩</div>
              </div>
         </div>
 
-        <h3>Services</h3>
-        <div class="service-list">
+        <h3>functions</h3>
+        <div class="function-list">
             <div 
-                v-for="service in services" 
-                :key="service.name" 
-                class="service-item" 
-                @click="$emit('add-service', service)"
+                v-for="func in functions" 
+                :key="func.function_name" 
+                class="function-item" 
+                @click="$emit('add-function-node', func)"
                 draggable="true"
-                @dragstart="$emit('drag-service', $event, service)"
+                @dragstart="$emit('drag-function-node', $event, func)"
             >
-                <div class="service-name">{{ service.name }}</div>
-                <div class="service-type" v-if="service.type">Type: {{ service.type }}</div>
+                <div class="function-name">{{ func.function_name }}</div>
+                <div class="function-type" v-if="func.type">Type: {{ func.type }}</div>
             </div>
-            <div v-if="services.length === 0" class="empty-msg">No services found</div>
+            <div v-if="functions.length === 0" class="empty-msg">No functions found</div>
         </div>
     </div>
 </template>
@@ -29,10 +29,10 @@
 
 
 defineProps<{
-    services: any[]
+    functions: any[]
 }>();
 
-defineEmits(['add-service', 'drag-service', 'add-start-node']);
+defineEmits(['add-function-node', 'drag-function-node', 'add-start-node']);
 </script>
 
 <style scoped>
@@ -54,13 +54,13 @@ h3 {
     border-bottom: 1px solid #252526;
 }
 
-.service-list {
+.function-list {
     flex: 1;
     overflow-y: auto;
     padding: 8px;
 }
 
-.service-item {
+.function-item {
     padding: 10px;
     background: #252526;
     border: 1px solid #333;
@@ -70,17 +70,17 @@ h3 {
     transition: all 0.2s;
 }
 
-.service-item:hover {
+.function-item:hover {
     background: #2d2d2d;
     border-color: #007acc;
 }
 
-.service-name {
+.function-name {
     font-weight: 600;
     color: #e0e0e0;
 }
 
-.service-type {
+.function-type {
     font-size: 11px;
     color: #888;
     margin-top: 4px;

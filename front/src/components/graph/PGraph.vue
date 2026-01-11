@@ -1,8 +1,8 @@
 <template>
     <div class="pgraph-container">
         <SidebarPalette 
-            :services="services" 
-            @add-service="addServiceNode"
+            :functions="functions" 
+            @add-function-node="addFunctionNode"
             @add-start-node="addStartNode"
         />
         
@@ -10,6 +10,23 @@
             <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="handleGraphMouseDown($event, frame)" :style="backgroundStyle">
                 
                 <button class="run-btn" @click="deployGraph">Run</button>
+                <div class="file-controls">
+                    <button class="file-btn" @click="handleSaveDisk">Save</button>
+                    <button class="file-btn" @click="handleLoadDisk">Load</button>
+                </div>
+                
+                <div v-if="loadingOpen" class="load-overlay" @click.self="loadingOpen = false">
+                     <div class="load-modal">
+                        <h3>Load Graph</h3>
+                        <div class="file-list">
+                            <div v-for="file in availableFiles" :key="file" class="file-item" @click="confirmLoad(file)">
+                                {{ file }}
+                            </div>
+                            <div v-if="availableFiles.length === 0" style="padding: 10px; color: #888;">No saved graphs found.</div>
+                        </div>
+                        <button class="close-load-btn" @click="loadingOpen = false">Cancel</button>
+                     </div>
+                </div>
 
                 <NodeSettings 
                     v-if="selectedNode"
@@ -72,7 +89,7 @@ import PEdge from './PEdge.vue';
 import NodeSettings from './NodeSettings.vue';
 import SidebarPalette from './SidebarPalette.vue';
 
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import type { NodeData, EdgeData, PortData } from '../../types/PGraph';
 import { v4 as uuid } from 'uuid';
 import { useGraph } from '@/composables/useGraph';
@@ -92,12 +109,12 @@ const {
     panX,
     panY,
     viewLayer,
-    services,
+    functions,
     handleWheel,
     handleGraphMouseDown,
     handleNodeMouseDown,
-    fetchServices,
-    addServiceNode,
+    fetchFunctions,
+    addFunctionNode,
     backgroundStyle,
     deployGraph,
     activeNodeId,
@@ -105,12 +122,44 @@ const {
     deleteSelection,
     copySelection,
     pasteSelection,
-    addStartNode
+    addStartNode,
+    loadFromLocalStorage,
+    saveGraphToDisk,
+    loadGraphFromDisk,
+    listGraphs
 } = useGraph();
 
 
 // Initialize services
-fetchServices();
+fetchFunctions();
+
+// Initialize Autosave
+onMounted(() => {
+    loadFromLocalStorage();
+})
+
+// --- Persistence UI ---
+const loadingOpen = ref(false);
+const availableFiles = ref<string[]>([]);
+
+const handleSaveDisk = async () => {
+    const name = prompt("Enter filename to save:", "my_graph");
+    if (name) {
+        const success = await saveGraphToDisk(name);
+    }
+}
+
+const handleLoadDisk = async () => {
+    availableFiles.value = await listGraphs();
+    loadingOpen.value = true;
+}
+
+const confirmLoad = async (filename: string) => {
+    if (confirm(`Load ${filename}? Unsaved changes will be lost.`)) {
+        await loadGraphFromDisk(filename);
+        loadingOpen.value = false;
+    }
+}
 
 
 // View Layer Switching & Shortcuts
@@ -266,12 +315,10 @@ const handleOpenSettings = (node: NodeData) => {
 };
 
 // Autosave behavior implemented in NodeSettings but we still handle close/update
-const handleSaveSettings = (payload: { inputMappings: Record<string, string> }) => {
-    if (selectedNode.value && selectedNode.value.settings) {
-        selectedNode.value.settings.inputMappings = payload.inputMappings;
+const handleSaveSettings = (payload: { inputVariables: Record<string, string> }) => {
+    if (selectedNode.value && selectedNode.value.inputVariables) {
+        selectedNode.value.inputVariables = payload.inputVariables;
     }
-    // No explicit close on save if autosave, but we might want to keep it open?
-    // User asked for autosave. 
 };
 
 const handleCloseSettings = () => {
@@ -336,5 +383,98 @@ const handleCloseSettings = () => {
 
 .run-btn:hover {
     background: #238636;
+}
+
+.file-controls {
+    position: absolute;
+    top: 10px;
+    right: 90px;
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+}
+
+.file-btn {
+    padding: 8px 16px;
+    background: #252526;
+    color: #ccc;
+    border: 1px solid #3e3e42;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.file-btn:hover {
+    background: #333333;
+    color: white;
+    border-color: #555;
+}
+
+.load-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.load-modal {
+    background: #1e1e1e;
+    width: 400px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+
+.load-modal h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #e0e0e0;
+}
+
+.file-list {
+    flex: 1;
+    overflow-y: auto;
+    background: #252526;
+    border: 1px solid #333;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    max-height: 300px;
+}
+
+.file-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #ccc;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.file-item:hover {
+    background: #2a2d2e;
+    color: white;
+}
+
+.close-load-btn {
+    align-self: flex-end;
+    padding: 6px 12px;
+    background: none;
+    border: 1px solid #444;
+    color: #ccc;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.close-load-btn:hover {
+    background: #333;
+    color: white;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-    <div class="p-node" :class="{ 'active-node': isActive, 'selected-node': isSelected }">
+    <div class="p-node" :class="{ 'active-node': isActive, 'selected-node': isSelected, 'start-node': nodeData.type === 'start' }">
             <TransformObject :anchor-x="'left'" class="port-frame ports">
                 <PPort v-for="port in nodeData.inputs" :ref="setPortRef(port.id)" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'" 
                     @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port, event: $event})"
@@ -28,12 +28,12 @@
                 />
             </TransformObject>
         
-        <div class="p-node-title" :class="{'start-node-title': nodeData.isStart}">
-            <svg v-if="nodeData.isStart" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
+        <div class="p-node-title" :class="{'start-node-title': nodeData.type === 'start'}">
+            <svg v-if="nodeData.type === 'start'" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
                 <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
                 <line x1="4" y1="22" x2="4" y2="15"></line>
             </svg>
-            <span>{{ nodeData.title }}</span>
+            <span>{{ nodeData.nodeName }}</span>
         </div>
     </div>
 </template>
@@ -98,6 +98,7 @@ defineExpose({
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
     user-select: none;
     width: 70px;
+    height: 70px;
     transition: box-shadow 0.2s, border-color 0.2s;
 }
 
@@ -106,24 +107,25 @@ defineExpose({
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
+.start-node .p-node-title {
+    color: #2adc4b;
+}
+
 .p-node-title {
     font-size: 11px;
     font-weight: 600;
     color: var(--node-title-color);
-    height: 70px;
     text-align: center;
-    line-height: 70px;
     letter-spacing: 0.025em;
-    background: rgba(255, 255, 255, 0.03);
     border-radius: 6px 6px 0 0;
     display: flex;
     justify-content: space-between; /* To space title and settings button */
     padding: 0 5px;
+    margin: auto;
 }
 
-.start-node-title {
-    background: rgba(46, 160, 67, 0.2);
-    color: #2ea043;
+.start-node {
+    background: rgb(38, 65, 32);
 }
 
 .active-node {

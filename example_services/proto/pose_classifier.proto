@@ -12,13 +12,3 @@ message ClassificationResponse {
   bool is_upside_down = 1;
   pose.PoseReading source_pose = 2;
 }
-
-service {
-    protocol = "http"
-    port = 8082
-}
-
-function classify-pose {
-    request = ClassificationRequest
-    response = ClassificationResponse
-}

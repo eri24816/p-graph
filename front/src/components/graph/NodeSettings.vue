@@ -2,35 +2,35 @@
     <div v-if="isOpen" class="node-settings-overlay" @click.self="$emit('close')">
         <div class="node-settings-modal">
             <div class="header">
-                <h3>Settings: {{ node.title }}</h3>
+                <h3>Settings: {{ node.nodeName }}</h3>
                 <button class="close-btn" @click="$emit('close')">×</button>
             </div>
             
             <div class="content">
-                <div v-if="node.serviceSchema" class="section">
-                    <h4>Inputs (Variable Mapping)</h4>
-                    <div v-for="(type, fieldName) in node.serviceSchema.input_fields" :key="fieldName" class="field-row">
-                        <label>{{ fieldName }} <span class="type" :style="{ color: getTypeColor(type) }">({{ type }})</span></label>
+                <div v-if="node.inputs.length > 0" class="section">
+                    <h4>Inputs</h4>
+                    <div v-for="input in node.inputs" :key="input.id" class="field-row">
+                        <label>{{ input.name }} <span class="type" :style="{ color: getTypeColor(input.dataType) }">({{ input.dataType }})</span></label>
                         <input 
-                            v-model="inputMappings[fieldName]" 
+                            v-model="inputVariables[input.name]" 
                             placeholder="Enter variable name..."
                             class="variable-input"
                         />
                     </div>
-                    <div v-if="!node.serviceSchema.input_fields || Object.keys(node.serviceSchema.input_fields).length === 0" class="empty-msg">
+                    <div v-if="node.inputs.length === 0" class="empty-msg">
                         No inputs defined.
                     </div>
                 </div>
 
-                <div v-if="node.serviceSchema" class="section">
-                    <h4>Outputs (Variables)</h4>
-                    <div v-for="(type, fieldName) in node.serviceSchema.output_fields" :key="fieldName" class="field-row">
-                        <label>{{ fieldName }} <span class="type" :style="{ color: getTypeColor(type) }">({{ type }})</span></label>
+                <div v-if="node.outputs.length > 0" class="section">
+                    <h4>Outputs</h4>
+                    <div v-for="output in node.outputs" :key="output.id" class="field-row">
+                        <label>{{ output.name }} <span class="type" :style="{ color: getTypeColor(output.dataType) }">({{ output.dataType }})</span></label>
                         <div class="readonly-value">
-                            {{ node.title }}_{{ fieldName }}
+                            {{ node.nodeName }}.{{ output.name }}
                         </div>
                     </div>
-                     <div v-if="!node.serviceSchema.output_fields || Object.keys(node.serviceSchema.output_fields).length === 0" class="empty-msg">
+                     <div v-if="node.outputs.length === 0" class="empty-msg">
                         No outputs defined.
                     </div>
                 </div>
@@ -55,21 +55,21 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'save']);
 
-const inputMappings = ref<Record<string, string>>({});
+const inputVariables = ref<Record<string, string>>({});
 const saving = ref(false);
 
 watch(() => props.isOpen, (newVal) => {
     if (newVal && props.node) {
         // Initialize from existing settings
-        inputMappings.value = { ...props.node.settings?.inputMappings };
+        inputVariables.value = { ...props.node.inputVariables };
     }
 }, { immediate: true });
 
 // Auto-save watch
-watch(inputMappings, () => {
+watch(inputVariables, () => {
     saving.value = true;
     emit('save', {
-        inputMappings: inputMappings.value
+        inputMappings: inputVariables.value
     });
     setTimeout(() => {
         saving.value = false;

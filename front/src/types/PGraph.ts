@@ -2,7 +2,7 @@ import type { Component } from 'vue';
 
 export type NodeData = {
     id: number | string
-    title: string
+    nodeName: string
     x: number
     y: number
     width: number
@@ -10,19 +10,17 @@ export type NodeData = {
     outputs: PortData[]
     controlInput: PortData
     controlOutput: PortData
-    isService?: boolean
-    isStart?: boolean
-    serviceSchema?: any
-    settings?: {
-        inputMappings: Record<string, string>
-        outputMappings: Record<string, string>
-    }
+    type: 'function' | 'start'
+    functionConfig?: any
+    inputVariables: Record<string, string>
 }
 
 export type PortData = {
+    name: string,
     id: number | string,
     type: string,
     layer: string,
+    dataType: string
 }
 
 export type EdgeData = {
@@ -36,4 +34,10 @@ export type EdgeData = {
     y1: number,
     x2: number,
     y2: number,
+}
+
+export type FunctionConfig = {
+    function_name: string
+    inputs: Record<string, string>
+    outputs: Record<string, string>
 }
