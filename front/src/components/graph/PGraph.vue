@@ -167,6 +167,13 @@ const confirmLoad = async (filename: string) => {
 const onBackgroundMouseDown = (event: MouseEvent) => {
     if (!frame.value) return;
 
+    // Middle mouse button (button 1) always pans
+    if (event.button === 1) {
+        event.preventDefault();
+        handleGraphMouseDown(event, frame.value);
+        return;
+    }
+
     // Use editor's background handler for selection
     if (event.shiftKey || (!event.ctrlKey && !event.metaKey)) {
         editor.handleBackgroundMouseDown(event, frame.value);
