@@ -1,112 +1,93 @@
 <template>
     <div class="pgraph-container">
-        <SidebarPalette 
-            :functions="functions" 
-            @addFunctionNode="addFunctionNode"
-            @addStartNode="addStartNode"
-        />
-        
-        <div class="graph-area">
-            <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)" @mousedown="onBackgroundMouseDown($event)" :style="backgroundStyle">
-                
-                <button class="run-btn" @click="deployGraph">Run</button>
-                <div class="file-controls">
-                    <button class="file-btn" @click="handleSaveDisk">Save</button>
-                    <button class="file-btn" @click="handleLoadDisk">Load</button>
-                </div>
-                
-                <div v-if="loadingOpen" class="load-overlay" @click.self="loadingOpen = false">
-                     <div class="load-modal">
-                        <h3>Load Graph</h3>
-                        <div class="file-list">
-                            <div v-for="file in availableFiles" :key="file" class="file-item" @click="confirmLoad(file)">
-                                {{ file }}
-                            </div>
-                            <div v-if="availableFiles.length === 0" style="padding: 10px; color: #888;">No saved graphs found.</div>
-                        </div>
-                        <button class="close-load-btn" @click="loadingOpen = false">Cancel</button>
-                     </div>
-                </div>
+        <SidebarPalette :functions="functions" @addFunctionNode="addFunctionNode" @addStartNode="addStartNode" />
+        <button class="run-btn" @click="deployGraph">Run</button>
+        <div class="file-controls">
+            <button class="file-btn" @click="handleSaveDisk">Save</button>
+            <button class="file-btn" @click="handleLoadDisk">Load</button>
+        </div>
 
-                <NodeSettings 
-                    v-if="selectedNode"
-                    :node="selectedNode" 
-                    :is-open="settingsOpen" 
-                    @close="handleCloseSettings" 
-                    @save="handleSaveSettings"
-                />
+        <div v-if="loadingOpen" class="load-overlay" @click.self="loadingOpen = false">
+            <div class="load-modal">
+                <h3>Load Graph</h3>
+                <div class="file-list">
+                    <div v-for="file in availableFiles" :key="file" class="file-item" @click="confirmLoad(file)">
+                        {{ file }}
+                    </div>
+                    <div v-if="availableFiles.length === 0" style="padding: 10px; color: #888;">No saved graphs
+                        found.</div>
+                </div>
+                <button class="close-load-btn" @click="loadingOpen = false">Cancel</button>
+            </div>
+        </div>
+
+        <NodeSettings v-if="selectedNode" :node="selectedNode" :is-open="settingsOpen" @close="handleCloseSettings"
+            @save="handleSaveSettings" />
+
+        <div class="graph-area">
+            <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)"
+                @mousedown="onBackgroundMouseDown($event)" :style="backgroundStyle">
+
+
 
                 <TransformObject ref="frame" :scale="scale" :x="panX" :y="panY">
-            <RectSelection :rect="editor.selectionRect.value" :visible="editor.isRectSelecting.value" />
-            <svg class="edges-layer">
-                <PEdge
-                    v-for="edge in edges"
-                    :key="edge.id"
-                    :edge="edge"
-                    :source-node="nodes.find(n => n.id === edge.sourceNodeId)"
-                    :target-node="nodes.find(n => n.id === edge.targetNodeId)"
-                    :dim = "edge.layer == 'control'? viewLayer == 'data': viewLayer == 'control'"
-                    :hide = "edge.layer == 'control'? false: viewLayer == 'control'"
-                    :is-selected="editor.selectedEdgeIds.value.has(edge.id)"
-                    :x1="edge.x1"
-                    :y1="edge.y1"
-                    :x2="edge.x2"
-                    :y2="edge.y2"
-                    @click="editor.handleEdgeClick"
-                />
-                <PEdge 
-                    v-if="drawingEdge" 
-                    :drawingLayer="drawingEdge.layer"
-                    is-drawing
-                    :x1="drawingEdge.startPort.type == 'output' ? drawingStart.x : drawingEdge.endX"
-                    :y1="drawingEdge.startPort.type == 'output' ? drawingStart.y : drawingEdge.endY"
-                    :x2="drawingEdge.startPort.type == 'output' ? drawingEdge.endX : drawingStart.x"
-                    :y2="drawingEdge.startPort.type == 'output' ? drawingEdge.endY : drawingStart.y"
-                />
-            </svg>
-            <TransformObject v-for="node in nodes" :key="node.id" :x="node.x" :y="node.y">
-                <PGraphNode
-                    :ref="setNodeRef(node.id)"
-                    :node-data="node"
-                    :view-layer="viewLayer"
-                    class="node"
-                    @mousedown.stop="editor.handleNodeMouseDown(node, $event, frame)"
-                    @port-mousedown="handlePortMouseDown"
-                    @port-mouseup="handlePortMouseUp"
-                    @dblclick.stop="handleOpenSettings(node)"
-                    :is-active="activeNodeId === node.id"
-                    :is-selected="editor.selectedNodeIds.value.has(node.id)"
-                />
-            </TransformObject>
-        </TransformObject>
-    </TransformFrame>
+                    <RectSelection :rect="editor.selectionRect.value" :visible="editor.isRectSelecting.value" />
+                    <svg class="edges-layer">
+                        <PEdge v-for="edge in edges" :key="edge.id" :edge="edge"
+                            :source-node="nodes.find(n => n.id === edge.sourceNodeId)"
+                            :target-node="nodes.find(n => n.id === edge.targetNodeId)"
+                            :hide="edge.layer != viewLayer"
+                            :is-selected="editor.selectedEdgeIds.value.has(edge.id)" :x1="edge.x1" :y1="edge.y1"
+                            :x2="edge.x2" :y2="edge.y2" @click="(e, event) => editor.handleEdgeClick(e, event)" />
+                        <PEdge v-if="drawingEdge" :drawingLayer="drawingEdge.layer" is-drawing
+                            :x1="drawingEdge.startPort.type == 'output' ? drawingStart.x : drawingEdge.endX"
+                            :y1="drawingEdge.startPort.type == 'output' ? drawingStart.y : drawingEdge.endY"
+                            :x2="drawingEdge.startPort.type == 'output' ? drawingEdge.endX : drawingStart.x"
+                            :y2="drawingEdge.startPort.type == 'output' ? drawingEdge.endY : drawingStart.y" />
+                    </svg>
+                    <TransformObject v-for="node in nodes" :key="node.id" :x="node.x" :y="node.y">
+                        <PGraphNode :ref="setNodeRef(node.id)" :node-data="node" :view-layer="viewLayer" class="node"
+                            @mousedown.stop="editor.handleNodeMouseDown(node, $event, frame)"
+                            @port-mousedown="handlePortMouseDown" @port-mouseup="handlePortMouseUp"
+                            @dblclick.stop="handleOpenSettings(node)" :is-active="activeNodeId === node.id"
+                            :is-selected="editor.selectedNodeIds.value.has(node.id)" />
+                    </TransformObject>
+                </TransformObject>
+            </TransformFrame>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import TransformObject from '../transform/TransformObject.vue';
-import TransformFrame from '../transform/TransformFrame.vue';
-import PGraphNode from './PNode.vue';
-import PEdge from './PEdge.vue';
-import NodeSettings from './NodeSettings.vue';
-import SidebarPalette from './SidebarPalette.vue';
-import RectSelection from './RectSelection.vue';
+import TransformObject from '../transform/TransformObject.vue'
+import TransformFrame from '../transform/TransformFrame.vue'
+import PGraphNode from './PNode.vue'
+import PEdge from './PEdge.vue'
+import NodeSettings from './NodeSettings.vue'
+import SidebarPalette from './SidebarPalette.vue'
+import RectSelection from './RectSelection.vue'
 
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
-import type { NodeData, EdgeData, PortData } from '../../types/PGraph';
-import { v4 as uuid } from 'uuid';
-import { useGraph } from '@/composables/useGraph';
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import type { NodeData, EdgeData, PortData } from '../../types/PGraph'
+import { v4 as uuid } from 'uuid'
+import { useGraph } from '@/composables/useGraph'
 
-const frame = ref<InstanceType<typeof TransformObject>>();
+const frame = ref<InstanceType<typeof TransformObject>>()
 const nodeRefs = ref<Record<string | number, InstanceType<typeof PGraphNode>>>({})
 
 const setNodeRef = (id: string | number) => (el: any) => {
     if (el) nodeRefs.value[id] = el
 }
 
+// Setup getNodeBounds callback for editor (defined before useGraph)
+const getNodeBounds = (nodeId: string | number): DOMRect | null => {
+    const nodeRef = nodeRefs.value[nodeId]
+    if (!nodeRef) return null
+    return nodeRef.getBoundingRect()
+}
+
 // Use reusable graph logic
-const graph = useGraph();
+const graph = useGraph(getNodeBounds)
 const {
     nodes,
     edges,
@@ -128,76 +109,75 @@ const {
     loadGraphFromDisk,
     listGraphs,
     editor
-} = graph;
-
+} = graph
 
 // Initialize services
-fetchFunctions();
+fetchFunctions()
 
 // Initialize Autosave
 onMounted(() => {
-    loadFromLocalStorage();
+    loadFromLocalStorage()
 })
 
 // --- Persistence UI ---
-const loadingOpen = ref(false);
-const availableFiles = ref<string[]>([]);
+const loadingOpen = ref(false)
+const availableFiles = ref<string[]>([])
 
 const handleSaveDisk = async () => {
-    const name = prompt("Enter filename to save:", "my_graph");
+    const name = prompt("Enter filename to save:", "my_graph")
     if (name) {
-        const success = await saveGraphToDisk(name);
+        const success = await saveGraphToDisk(name)
     }
 }
 
 const handleLoadDisk = async () => {
-    availableFiles.value = await listGraphs();
-    loadingOpen.value = true;
+    availableFiles.value = await listGraphs()
+    loadingOpen.value = true
 }
 
 const confirmLoad = async (filename: string) => {
     if (confirm(`Load ${filename}? Unsaved changes will be lost.`)) {
-        await loadGraphFromDisk(filename);
-        loadingOpen.value = false;
+        await loadGraphFromDisk(filename)
+        loadingOpen.value = false
     }
 }
 
 
 // Background click handler
 const onBackgroundMouseDown = (event: MouseEvent) => {
-    if (!frame.value) return;
+    if (!frame.value) return
+    event.preventDefault();
 
     // Middle mouse button (button 1) always pans
     if (event.button === 1) {
-        event.preventDefault();
-        handleGraphMouseDown(event, frame.value);
-        return;
+        handleGraphMouseDown(event, frame.value)
+        return
     }
 
     // Use editor's background handler for selection
-    if (event.shiftKey || (!event.ctrlKey && !event.metaKey)) {
-        editor.handleBackgroundMouseDown(event, frame.value);
+    if (event.button === 0) {
+        editor.handleBackgroundMouseDown(event, frame.value)
     } else {
         // Fall back to pan handler
-        handleGraphMouseDown(event, frame.value);
+        handleGraphMouseDown(event, frame.value)
     }
 }
 
 // View Layer Switching & Shortcuts
 const handleKeydown = (event: KeyboardEvent) => {
     // Ignore if input is focused
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
 
     if (event.key === 'Tab') {
-        event.preventDefault();
-        viewLayer.value = viewLayer.value === 'control' ? 'data' : 'control';
-        return;
+        event.preventDefault()
+        viewLayer.value = viewLayer.value === 'control' ? 'data' : 'control'
+        return
     }
 
     // Let editor handle other keyboard shortcuts
-    editor.handleKeyDown(event);
+    editor.handleKeyDown(event)
 }
-document.addEventListener('keydown', handleKeydown);
+document.addEventListener('keydown', handleKeydown)
 
 
 // --- Port / Edge Logic (Keep in component for now as it relies on refs heavily) ---
@@ -206,95 +186,95 @@ document.addEventListener('keydown', handleKeydown);
 
 const getPortPosition = (nodeId: number | string, port: PortData) => {
     // We need nodeRefs here which are component specific
-    const nodeCmp = nodeRefs.value[nodeId];
+    const nodeCmp = nodeRefs.value[nodeId]
     if (!nodeCmp || !frame.value) return { x: 0, y: 0 }
-    
+
     // We can expose getPortPosition from PNode, and then transform it
     const screenPos = nodeCmp.getPortPosition(port)
     return frame.value.screenToLocal(screenPos)
-};
+}
 
-const drawingEdge = ref<{startNodeId: number | string, startPort: PortData, endX: number, endY: number, layer:string} | null>(null);
+const drawingEdge = ref<{ startNodeId: number | string, startPort: PortData, endX: number, endY: number, layer: string } | null>(null)
 
 const drawingStart = computed(() => {
-    if (!drawingEdge.value) return { x: 0, y: 0 };
-    return getPortPosition(drawingEdge.value.startNodeId, drawingEdge.value.startPort);
-});
+    if (!drawingEdge.value) return { x: 0, y: 0 }
+    return getPortPosition(drawingEdge.value.startNodeId, drawingEdge.value.startPort)
+})
 
 
 const handlePortMouseDown = (payload: { nodeId: number | string, port: PortData, event: MouseEvent }) => {
-    const pos = getPortPosition(payload.nodeId, payload.port);
+    const pos = getPortPosition(payload.nodeId, payload.port)
     drawingEdge.value = {
         startNodeId: payload.nodeId,
         startPort: payload.port,
         endX: pos.x,
         endY: pos.y,
         layer: payload.port.layer,
-    };
-    
+    }
+
     const onMouseMove = (e: MouseEvent) => {
-        if (!drawingEdge.value) return;
-        const mousePos = frame.value!.getMousePosition(e);
-        drawingEdge.value.endX = mousePos.x;
-        drawingEdge.value.endY = mousePos.y;
-    };
-    
+        if (!drawingEdge.value) return
+        const mousePos = frame.value!.getMousePosition(e)
+        drawingEdge.value.endX = mousePos.x
+        drawingEdge.value.endY = mousePos.y
+    }
+
     const onMouseUp = () => {
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
+        window.removeEventListener('mousemove', onMouseMove)
+        window.removeEventListener('mouseup', onMouseUp)
         setTimeout(() => {
-            drawingEdge.value = null;
-        }, 10);
-    };
-    
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-};
+            drawingEdge.value = null
+        }, 10)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+}
 
 const updateEdgePosition = (edge: EdgeData) => {
-    const sourceNode = nodes.value.find(n => n.id === edge.sourceNodeId);
-    const targetNode = nodes.value.find(n => n.id === edge.targetNodeId);
-    
-    if (!sourceNode || !targetNode) return;
-    
-    const sourcePort = [...sourceNode.inputs, ...sourceNode.outputs, sourceNode.controlInput, sourceNode.controlOutput].find(p => p.id === edge.sourcePortId);
-    const targetPort = [...targetNode.inputs, ...targetNode.outputs, targetNode.controlInput, targetNode.controlOutput].find(p => p.id === edge.targetPortId);
+    const sourceNode = nodes.value.find(n => n.id === edge.sourceNodeId)
+    const targetNode = nodes.value.find(n => n.id === edge.targetNodeId)
+
+    if (!sourceNode || !targetNode) return
+
+    const sourcePort = [...sourceNode.inputs, ...sourceNode.outputs, sourceNode.controlInput, sourceNode.controlOutput].find(p => p.id === edge.sourcePortId)
+    const targetPort = [...targetNode.inputs, ...targetNode.outputs, targetNode.controlInput, targetNode.controlOutput].find(p => p.id === edge.targetPortId)
 
     if (sourcePort && targetPort) {
-        const pos1 = getPortPosition(edge.sourceNodeId, sourcePort);
-        edge.x1 = pos1.x;
-        edge.y1 = pos1.y;
-        
-        const pos2 = getPortPosition(edge.targetNodeId, targetPort);
-        edge.x2 = pos2.x;
-        edge.y2 = pos2.y;
+        const pos1 = getPortPosition(edge.sourceNodeId, sourcePort)
+        edge.x1 = pos1.x
+        edge.y1 = pos1.y
+
+        const pos2 = getPortPosition(edge.targetNodeId, targetPort)
+        edge.x2 = pos2.x
+        edge.y2 = pos2.y
     }
 }
 
 const updateAllEdgePositions = () => {
     edges.value.forEach(edge => {
-        updateEdgePosition(edge);
-    });
-};
+        updateEdgePosition(edge)
+    })
+}
 
-const handlePortMouseUp = (payload: {nodeId: number | string, port: PortData, event: MouseEvent}) => {
+const handlePortMouseUp = (payload: { nodeId: number | string, port: PortData, event: MouseEvent }) => {
     if (drawingEdge.value) {
-        if (drawingEdge.value.startNodeId === payload.nodeId) return;
+        if (drawingEdge.value.startNodeId === payload.nodeId) return
         if (drawingEdge.value.startPort.type == payload.port.type) {
             drawingEdge.value = null
             return
         }
 
-        let newEdge: EdgeData;
-        const isOutput = drawingEdge.value.startPort.type == 'output';
-        
-        const sourceData = isOutput ? 
-            { nid: drawingEdge.value.startNodeId, pid: drawingEdge.value.startPort.id } : 
-            { nid: payload.nodeId, pid: payload.port.id };
-            
-        const targetData = isOutput ? 
-            { nid: payload.nodeId, pid: payload.port.id } : 
-            { nid: drawingEdge.value.startNodeId, pid: drawingEdge.value.startPort.id };
+        let newEdge: EdgeData
+        const isOutput = drawingEdge.value.startPort.type == 'output'
+
+        const sourceData = isOutput ?
+            { nid: drawingEdge.value.startNodeId, pid: drawingEdge.value.startPort.id } :
+            { nid: payload.nodeId, pid: payload.port.id }
+
+        const targetData = isOutput ?
+            { nid: payload.nodeId, pid: payload.port.id } :
+            { nid: drawingEdge.value.startNodeId, pid: drawingEdge.value.startPort.id }
 
         newEdge = {
             id: uuid(),
@@ -304,39 +284,39 @@ const handlePortMouseUp = (payload: {nodeId: number | string, port: PortData, ev
             targetPortId: targetData.pid,
             layer: payload.port.layer,
             x1: 0, y1: 0, x2: 0, y2: 0,
-        };
+        }
 
-        edges.value.push(newEdge);
-        updateEdgePosition(newEdge);
-        drawingEdge.value = null;
+        edges.value.push(newEdge)
+        updateEdgePosition(newEdge)
+        drawingEdge.value = null
     }
-};
+}
 
 // Sync edges when nodes move or edges are updated
 watch(nodes, () => {
-    nextTick(updateAllEdgePositions);
-}, { deep: true });
+    nextTick(updateAllEdgePositions)
+}, { deep: true })
 
 
 // --- Settings Handling ---
-const settingsOpen = ref(false);
-const selectedNode = ref<NodeData | null>(null);
+const settingsOpen = ref(false)
+const selectedNode = ref<NodeData | null>(null)
 
 const handleOpenSettings = (node: NodeData) => {
-    selectedNode.value = node;
-    settingsOpen.value = true;
-};
+    selectedNode.value = node
+    settingsOpen.value = true
+}
 
 // Autosave behavior implemented in NodeSettings but we still handle close/update
 const handleSaveSettings = (payload: { inputVariables: Record<string, string> }) => {
     if (selectedNode.value && selectedNode.value.inputVariables) {
-        selectedNode.value.inputVariables = payload.inputVariables;
+        selectedNode.value.inputVariables = payload.inputVariables
     }
-};
+}
 
 const handleCloseSettings = () => {
-    settingsOpen.value = false;
-    selectedNode.value = null;
+    settingsOpen.value = false
+    selectedNode.value = null
 };
 
 
@@ -365,23 +345,22 @@ const handleCloseSettings = () => {
     background-color: var(--bg-color);
     background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
     background-size: calc(32px * var(--scale, 1)) calc(32px * var(--scale, 1));
-    background-position: 
-        calc(50% + var(--pan-x, 0px)) 
-        calc(50% + var(--pan-y, 0px));
+    background-position:
+        calc(50% + var(--pan-x, 0px)) calc(50% + var(--pan-y, 0px));
 }
 
 .edges-layer {
     position: absolute;
     top: 0;
     left: 0;
-    pointer-events: none;
     overflow: visible;
 }
 
 .run-btn {
     position: absolute;
     top: 10px;
-    right: 10px; /* Moved to right */
+    right: 10px;
+    /* Moved to right */
     left: auto;
     z-index: 100;
     padding: 8px 24px;
@@ -391,7 +370,7 @@ const handleCloseSettings = () => {
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .run-btn:hover {

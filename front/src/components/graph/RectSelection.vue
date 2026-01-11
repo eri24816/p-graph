@@ -1,6 +1,6 @@
 <template>
     <div
-        v-if="visible"
+        v-if="visible && rect.width > 0 && rect.height > 0"
         class="rect-selection"
         :style="style"
     />

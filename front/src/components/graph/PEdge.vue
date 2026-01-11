@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<{
 }>(), {
     dim: false,
     hide: false,
-    drawingLayer: 'data',
+    drawingLayer: '',
     isSelected: false,
 });
 
@@ -27,7 +27,10 @@ const emit = defineEmits<{
     click: [edge: EdgeData, event: MouseEvent]
 }>();
 
+const layer = computed(()=>props.edge?.layer || props.drawingLayer)
+
 const handleClick = (event: MouseEvent) => {
+    console.log('handleClick called');
     if (props.edge && !props.isDrawing) {
         emit('click', props.edge, event)
     }
@@ -37,18 +40,19 @@ const path = computed(() => {
     const start = { x: props.x1, y: props.y1 };
     const end = { x: props.x2, y: props.y2 };
 
-    const dx = Math.abs(end.x - start.x) * 0.5;
+    const dx = Math.abs(end.x - start.x) * (layer.value == 'data' ? 0.5 : 0.5);
     return `M ${start.x} ${start.y} C ${start.x + dx} ${start.y}, ${end.x - dx} ${end.y}, ${end.x} ${end.y}`;
 });
 </script>
 
 <template>
-    <g>
+    <g class="p-edge-g">
         <!-- Invisible wider path for easier clicking -->
         <path
             v-if="!isDrawing"
             :d="path"
             class="edge-hit-area"
+            :class="{ hide: hide }"
             @click="handleClick"
         />
         <!-- Visible edge path -->
@@ -59,7 +63,7 @@ const path = computed(() => {
                 drawing: isDrawing,
                 dim: dim,
                 hide: hide,
-                isControl: edge?.layer==='control' || drawingLayer==='control',
+                isDataFlow: layer === 'data',
                 selected: isSelected
             }"
             @click="handleClick"
@@ -68,56 +72,69 @@ const path = computed(() => {
 </template>
 
 <style scoped>
-.edge-hit-area {
-    fill: none;
-    stroke: transparent;
-    stroke-width: 16px;
-    stroke-linecap: round;
-    cursor: pointer;
-}
-
+/* Base styles - default control flow color */
 .edge-path {
     fill: none;
-    stroke: var(--data-flow-color);
-    stroke-width: 2px;
+    stroke: var(--control-flow-color);
+    stroke-width: 3px;
     stroke-linecap: round;
     opacity: 0.8;
     cursor: pointer;
-    transition: stroke-width 0.1s, opacity 0.1s;
+    transition: stroke 0.1s, opacity 0.1s;
 }
 
-.edge-path:hover {
-    stroke-width: 3px;
-    opacity: 1;
-}
-
-.edge-path.selected {
-    stroke: #4a9eff;
-    stroke-width: 3px;
-    opacity: 1;
-}
-
-.edge-path.drawing {
-    stroke-dasharray: 5, 5;
-    opacity: 0.5;
-    cursor: default;
-}
-
+/* Modifiers */
 .edge-path.dim {
     opacity: 0.3;
 }
 
 .edge-path.hide {
     opacity: 0;
+    pointer-events: none;
 }
 
-.edge-path.isControl {
-    stroke-width: 3px;
-    stroke: var(--accent-blue);
+.edge-hit-area.hide{
+    pointer-events: none;
 }
 
-.edge-path.isControl.selected {
-    stroke: #6bb3ff;
-    stroke-width: 4px;
+/* Priority 4 (lowest): Data flow color */
+.edge-path.isDataFlow {
+    stroke: var(--data-flow-color);
+    stroke-width: 2px;
+}
+
+/* Selection underlay */
+.edge-selection-underlay.dim {
+    opacity: 0.15;
+}
+
+.edge-selection-underlay.hide {
+    opacity: 0;
+}
+
+/* Priority 3: Hover - must come before selected */
+.p-edge-g:hover .edge-path:not(.selected):not(.drawing) {
+    stroke: var(--hover-color);
+}
+
+/* Priority 2: Selected - higher priority than hover */
+.edge-path.selected:not(.drawing) {
+    stroke: var(--selected-color);
+}
+
+/* Priority 1 (highest): Drawing */
+.edge-path.drawing {
+    stroke: var(--selected-color);
+    stroke-dasharray: 5, 5;
+    opacity: 0.5;
+    cursor: default;
+}
+
+.edge-hit-area {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 16px;
+    stroke-linecap: round;
+    cursor: pointer;
 }
 </style>

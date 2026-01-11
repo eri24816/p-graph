@@ -1,5 +1,5 @@
 <template>
-    <div class="p-node" :class="{ 'active-node': isActive, 'selected-node': isSelected, 'start-node': nodeData.type === 'start' }">
+    <div ref="nodeEl" class="p-node" :class="{ 'active-node': isActive, 'selected-node': isSelected, 'start-node': nodeData.type === 'start' }">
             <TransformObject :anchor-x="'left'" class="port-frame ports">
                 <PPort v-for="port in nodeData.inputs" :ref="setPortRef(port.id)" :key="port.id" :port-data="port" :hide="viewLayer !== 'data'" 
                     @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port, event: $event})"
@@ -15,14 +15,14 @@
             </TransformObject>
 
             <TransformObject :anchor-x="'left'" class="port-frame ports">
-                <PPort :ref="setPortRef(nodeData.controlInput.id)" :port-data="nodeData.controlInput" :dim="viewLayer !== 'control'" 
+                <PPort :ref="setPortRef(nodeData.controlInput.id)" :port-data="nodeData.controlInput" :hide="viewLayer !== 'control'" 
                     @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port: nodeData.controlInput, event: $event})"
                     @port-mouseup="$emit('port-mouseup', {nodeId: nodeData.id, port: nodeData.controlInput, event: $event})"
                 />
             </TransformObject>
 
             <TransformObject :anchor-x="'right'" class="port-frame ports">
-                <PPort :ref="setPortRef(nodeData.controlOutput.id)" :port-data="nodeData.controlOutput" :dim="viewLayer !== 'control'"
+                <PPort :ref="setPortRef(nodeData.controlOutput.id)" :port-data="nodeData.controlOutput" :hide="viewLayer !== 'control'"
                     @port-mousedown="$emit('port-mousedown', {nodeId: nodeData.id, port: nodeData.controlOutput, event: $event})"
                     @port-mouseup="$emit('port-mouseup', {nodeId: nodeData.id, port: nodeData.controlOutput, event: $event})"
                 />
@@ -45,6 +45,7 @@ import PPort from './PPort.vue'
 
 import { ref } from 'vue'
 
+const nodeEl = ref<HTMLElement>()
 const portRefs = ref<Record<string | number, InstanceType<typeof PPort>>>({})
 
 const setPortRef = (id: string | number) => (el: any) => {
@@ -60,6 +61,11 @@ const getPortPosition = (port: PortData) => {
         y: rect.top + rect.height / 2
     }
     return screenPos
+}
+
+const getBoundingRect = () => {
+    if (!nodeEl.value) return null
+    return nodeEl.value.getBoundingClientRect()
 }
 
 withDefaults(defineProps<{
@@ -79,7 +85,8 @@ defineEmits<{
 }>()
 
 defineExpose({
-    getPortPosition
+    getPortPosition,
+    getBoundingRect
 })
 
 </script>
@@ -103,8 +110,7 @@ defineExpose({
 }
 
 .p-node:hover {
-    border-color: var(--accent-blue);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2), 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    border-color: var(--hover-color);
 }
 
 .start-node .p-node-title {
@@ -130,12 +136,11 @@ defineExpose({
 
 .active-node {
     border: 2px solid #2ea043;
-    box-shadow: 0 0 10px #2ea043;
 }
 
 .selected-node {
-    border: 1px solid #007acc;
-    box-shadow: 0 0 0 1px #007acc;
+    border: 1px solid var(--node-border);
+    box-shadow: 0 0 0 2px var(--selected-color), 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 .active-node.selected-node {

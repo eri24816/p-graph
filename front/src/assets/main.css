@@ -7,11 +7,14 @@
     --dot-color: #1e293b;
     --node-bg: #1e293b;
     --node-border: #334155;
-    --node-title-color: #f8fafc;
+    --node-title-color: #f8fafc;    
     --port-bg: #64748b;
     --port-border: #334155;
     --accent-blue: #3b82f6;
-    --data-flow-color: #24b341;
+    --data-flow-color: #26b324ce;
+    --control-flow-color: #707070;
+    --hover-color: #b4b4b4;
+    --selected-color: #3b82f6;
 }
 
 /* :root {

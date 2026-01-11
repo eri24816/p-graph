@@ -19,7 +19,7 @@ import { useGraphLayers } from './useGraphLayers'
  * - useGraphExecution: Deployment and runtime
  * - useGraphPersistence: Save/load
  */
-export function useGraph() {
+export function useGraph(getNodeBounds?: (nodeId: string | number) => DOMRect | null) {
     // ==================== INITIALIZE MODULES ====================
 
     // Core data
@@ -33,11 +33,16 @@ export function useGraph() {
     // View layers
     const layers = useGraphLayers()
 
-    // Editor (selection, copy/paste, etc.)
-    const editor = useGraphEditor({ nodes, edges })
-
     // Function palette
     const functionsModule = useGraphFunctions()
+
+    // Editor (selection, copy/paste, etc.)
+    const editor = useGraphEditor({
+        nodes,
+        edges,
+        getNewNodeName: functionsModule.getNewNodeName,
+        getNodeBounds
+    })
 
     // Execution
     const execution = useGraphExecution(nodes, edges)

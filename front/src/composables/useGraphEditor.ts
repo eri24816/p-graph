@@ -6,6 +6,8 @@ export interface GraphEditorOptions {
     nodes: Ref<NodeData[]>
     edges: Ref<EdgeData[]>
     onSelectionChange?: (nodeIds: Set<string | number>, edgeIds: Set<string | number>) => void
+    getNewNodeName?: (prefix: string, existingNodes: NodeData[]) => string
+    getNodeBounds?: (nodeId: string | number) => DOMRect | null
 }
 
 export interface Rectangle {
@@ -18,7 +20,7 @@ export interface Rectangle {
 export { type Rectangle as RectangleType }
 
 export function useGraphEditor(options: GraphEditorOptions) {
-    const { nodes, edges, onSelectionChange } = options
+    const { nodes, edges, onSelectionChange, getNewNodeName, getNodeBounds } = options
 
     // ==================== SELECTION STATE ====================
     const selectedNodeIds = ref<Set<string | number>>(new Set())
@@ -147,12 +149,15 @@ export function useGraphEditor(options: GraphEditorOptions) {
         rectSelectEnd.value = { x, y }
     }
 
-    const finishRectSelection = (multi: boolean = false) => {
+    const finishRectSelection = (multi: boolean = false, frameEl?: any) => {
         if (!isRectSelecting.value) return
 
         const rect = selectionRect.value
         const nodesInRect = nodes.value.filter(node =>
-            isNodeInRect(node, rect)
+            isNodeInRect(node, rect, frameEl)
+        )
+        const edgesInRect = edges.value.filter(edge =>
+            isEdgeInRect(edge, rect)
         )
 
         if (!multi) {
@@ -161,6 +166,7 @@ export function useGraphEditor(options: GraphEditorOptions) {
         }
 
         nodesInRect.forEach(node => selectedNodeIds.value.add(node.id))
+        edgesInRect.forEach(edge => selectedEdgeIds.value.add(edge.id))
 
         isRectSelecting.value = false
         notifySelectionChange()
@@ -170,17 +176,59 @@ export function useGraphEditor(options: GraphEditorOptions) {
         isRectSelecting.value = false
     }
 
-    const isNodeInRect = (node: NodeData, rect: Rectangle): boolean => {
-        // Check if node bounds intersect with selection rectangle
+    const isEdgeInRect = (edge: EdgeData, rect: Rectangle): boolean => {
+        const rectRight = rect.x + rect.width
+        const rectBottom = rect.y + rect.height
+
+        // Check if both edge endpoints are completely inside the rectangle
+        return edge.x1 >= rect.x &&
+               edge.x1 <= rectRight &&
+               edge.y1 >= rect.y &&
+               edge.y1 <= rectBottom &&
+               edge.x2 >= rect.x &&
+               edge.x2 <= rectRight &&
+               edge.y2 >= rect.y &&
+               edge.y2 <= rectBottom
+    }
+
+    const isNodeInRect = (node: NodeData, rect: Rectangle, frameEl?: any): boolean => {
+        // Use DOM bounding rect if available
+        if (getNodeBounds && frameEl) {
+            const nodeBounds = getNodeBounds(node.id)
+            if (nodeBounds) {
+                // Convert screen rect to local coordinates
+                const topLeft = frameEl.screenToLocal({ x: nodeBounds.left, y: nodeBounds.top })
+                const bottomRight = frameEl.screenToLocal({ x: nodeBounds.right, y: nodeBounds.bottom })
+
+                const nodeRect = {
+                    x: topLeft.x,
+                    y: topLeft.y,
+                    right: bottomRight.x,
+                    bottom: bottomRight.y
+                }
+
+                const rectRight = rect.x + rect.width
+                const rectBottom = rect.y + rect.height
+
+                // Check if node is completely inside the rectangle
+                return nodeRect.x >= rect.x &&
+                       nodeRect.right <= rectRight &&
+                       nodeRect.y >= rect.y &&
+                       nodeRect.bottom <= rectBottom
+            }
+        }
+
+        // Fallback to node data coordinates
         const nodeRight = node.x + node.width
         const nodeBottom = node.y + 60 // Approximate node height
         const rectRight = rect.x + rect.width
         const rectBottom = rect.y + rect.height
 
-        return !(node.x > rectRight ||
-                 nodeRight < rect.x ||
-                 node.y > rectBottom ||
-                 nodeBottom < rect.y)
+        // Check if node is completely inside the rectangle
+        return node.x >= rect.x &&
+               nodeRight <= rectRight &&
+               node.y >= rect.y &&
+               nodeBottom <= rectBottom
     }
 
     // ==================== CLIPBOARD OPERATIONS ====================
@@ -227,6 +275,11 @@ export function useGraphEditor(options: GraphEditorOptions) {
             newNode.id = newId
             newNode.x += offsetX
             newNode.y += offsetY
+
+            // Generate unique node name to prevent conflicts
+            if (getNewNodeName) {
+                newNode.nodeName = getNewNodeName(newNode.nodeName, nodes.value)
+            }
 
             // Regenerate port IDs
             if (newNode.inputs) newNode.inputs.forEach((p: any) => p.id = uuid())
@@ -408,6 +461,8 @@ export function useGraphEditor(options: GraphEditorOptions) {
     }
 
     const handleNodeMouseDown = (node: NodeData, event: MouseEvent, frameEl: any) => {
+        event.preventDefault() // Prevent text selection during drag
+
         // Handle selection
         handleNodeClick(node, event)
 
@@ -448,8 +503,7 @@ export function useGraphEditor(options: GraphEditorOptions) {
     const handleBackgroundMouseDown = (event: MouseEvent, frameEl: any) => {
         const mousePos = frameEl.getMousePosition(event)
 
-        // Start rectangle selection if shift is held, otherwise clear selection
-        if (event.shiftKey) {
+        if (event.button === 0) {
             startRectSelection(mousePos.x, mousePos.y)
 
             const onMouseMove = (e: MouseEvent) => {
@@ -458,7 +512,7 @@ export function useGraphEditor(options: GraphEditorOptions) {
             }
 
             const onMouseUp = (e: MouseEvent) => {
-                finishRectSelection(e.ctrlKey || e.metaKey)
+                finishRectSelection(e.ctrlKey || e.metaKey, frameEl)
                 window.removeEventListener('mousemove', onMouseMove)
                 window.removeEventListener('mouseup', onMouseUp)
             }
