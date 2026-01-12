@@ -1,5 +1,6 @@
 import { computed, type Ref } from 'vue'
 import type { NodeData, EdgeData } from '@/types/PGraph'
+import { isValidLiteral, isValidVariableReference } from '@/utils/validation'
 
 export type ValidationIssue = {
     type: 'error' | 'warning' | 'info'
@@ -72,16 +73,25 @@ export function useGraphValidation(
                     return
                 }
 
-                // Parse variable name (format: nodeName.outputName)
-                const parts = varName.split('.')
-                if (parts.length !== 2) {
+                const trimmed = varName.trim()
+
+                // Check if it's a valid literal for this type
+                if (isValidLiteral(trimmed, input.dataType)) {
+                    // Valid literal, no further validation needed
+                    return
+                }
+
+                // Check if it's a valid variable reference format
+                if (!isValidVariableReference(trimmed)) {
                     issues.push({
                         type: 'error',
-                        message: `Invalid variable format for input "${input.name}": "${varName}"`
+                        message: `Invalid value for input "${input.name}": must be a ${input.dataType} literal or a valid variable reference`
                     })
                     return
                 }
 
+                // Parse variable name (format: nodeName.outputName)
+                const parts = trimmed.split('.')
                 const [sourceNodeName, outputName] = parts
 
                 // Find the source node

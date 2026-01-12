@@ -21,8 +21,9 @@
             </div>
         </div>
 
-        <NodeSettings v-if="selectedNode" :node="selectedNode" :all-nodes="nodes" :is-open="settingsOpen" @close="handleCloseSettings"
-            @save="handleSaveSettings" />
+        <NodeSettings v-if="selectedNode" :node="selectedNode" :all-nodes="nodes" :is-open="settingsOpen"
+            :validation-issues="getNodeIssues(selectedNode.id)"
+            @close="handleCloseSettings" @save="handleSaveSettings" />
 
         <div class="graph-area">
             <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)"
