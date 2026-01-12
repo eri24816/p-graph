@@ -45,5 +45,5 @@ export function isValidLiteral(value: string, type: string): boolean {
 export function isValidVariableReference(value: string): boolean {
     if (!value) return false
     // Variable references should be in the format: nodeName.outputName
-    return /^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(value.trim())
+    return /^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)?$/.test(value.trim())
 }

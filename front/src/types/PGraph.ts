@@ -13,6 +13,7 @@ export type NodeData = {
     type: 'function' | 'start'
     functionConfig?: any
     inputVariables: Record<string, string>
+    icon?: string
 }
 
 export type PortData = {

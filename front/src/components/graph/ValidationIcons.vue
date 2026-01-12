@@ -58,15 +58,16 @@ const getInfoMessages = () => {
 .validation-icons {
     position: absolute;
     top: -20px;
-    right: 0;
+    width: 100%;
     display: flex;
     gap: 4px;
     z-index: 10;
+    justify-content: center;
 }
 
 .validation-icon {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
     display: flex;
     align-items: center;

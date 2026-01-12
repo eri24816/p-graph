@@ -68,7 +68,7 @@ export function useGraphValidation(
                     // Input not mapped
                     issues.push({
                         type: 'error',
-                        message: `Input "${input.name}" is not mapped to a variable`
+                        message: `Input <b>${input.name}</b> is not set`
                     })
                     return
                 }
@@ -85,7 +85,7 @@ export function useGraphValidation(
                 if (!isValidVariableReference(trimmed)) {
                     issues.push({
                         type: 'error',
-                        message: `Invalid value for input "${input.name}": must be a ${input.dataType} literal or a valid variable reference`
+                        message: `Syntax error in input <b>${input.name}</b>`
                     })
                     return
                 }
@@ -99,7 +99,7 @@ export function useGraphValidation(
                 if (!sourceNode) {
                     issues.push({
                         type: 'error',
-                        message: `Source node "${sourceNodeName}" not found for input "${input.name}"`
+                        message: `Variable <b>${varName}</b> does not exist`
                     })
                     return
                 }
@@ -108,7 +108,7 @@ export function useGraphValidation(
                 if (!connectedNodeIds.value.has(sourceNode.id)) {
                     issues.push({
                         type: 'error',
-                        message: `Source node "${sourceNodeName}" is not connected to start node`
+                        message: `Input <b>${input.name}</b> depends on node <b>${sourceNodeName}</b>, which will never execute`
                     })
                     return
                 }
@@ -118,7 +118,7 @@ export function useGraphValidation(
                 if (!sourceOutput) {
                     issues.push({
                         type: 'error',
-                        message: `Output "${outputName}" not found in node "${sourceNodeName}"`
+                        message: `Variable <b>${varName}</b> does not exist`
                     })
                     return
                 }
@@ -127,7 +127,7 @@ export function useGraphValidation(
                 if (input.dataType !== sourceOutput.dataType) {
                     issues.push({
                         type: 'error',
-                        message: `Type mismatch for input "${input.name}": expected ${input.dataType}, got ${sourceOutput.dataType}`
+                        message: `Type mismatch for input <b>${input.name}</b>: expected ${input.dataType}, got ${sourceOutput.dataType}`
                     })
                 }
             })

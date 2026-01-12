@@ -25,7 +25,7 @@
                 </div>
 
                 <div v-if="validationIssues && validationIssues.length > 0" class="section">
-                    <h4>Validation Issues</h4>
+                    <h4>Issues</h4>
                     <div class="validation-list">
                         <div
                             v-for="(issue, index) in validationIssues"
@@ -38,7 +38,7 @@
                                 <span v-else-if="issue.type === 'warning'">⚠</span>
                                 <span v-else>ℹ</span>
                             </span>
-                            <span class="validation-message">{{ issue.message }}</span>
+                            <span class="validation-message" v-html="issue.message"></span>
                         </div>
                     </div>
                 </div>
@@ -84,7 +84,11 @@
                     <h4>Outputs</h4>
                     <div v-for="output in node.outputs" :key="output.id" class="field-row">
                         <label>{{ output.name }} <span class="type" :style="{ color: getTypeColor(output.dataType) }">({{ output.dataType }})</span></label>
-                        <div class="readonly-value">
+                        <div
+                            class="readonly-value clickable"
+                            @click="copyToClipboard(`${node.nodeName}.${output.name}`)"
+                            title="Click to copy"
+                        >
                             {{ node.nodeName }}.{{ output.name }}
                         </div>
                     </div>
@@ -106,6 +110,7 @@
 import type { NodeData } from '@/types/PGraph';
 import { ref, watch, computed } from 'vue';
 import { isValidLiteral, isValidVariableReference } from '@/utils/validation';
+import { useNotification } from '@/composables/useNotification';
 
 const props = defineProps<{
     node: NodeData,
@@ -115,6 +120,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'save']);
+
+const { success } = useNotification();
 
 const nodeName = ref('');
 const inputVariables = ref<Record<string, string>>({});
@@ -212,7 +219,7 @@ const validateInputValue = (inputName: string, value: string): string | null => 
     }
 
     // Invalid format
-    return `Invalid value: must be a ${input.dataType} literal or a valid variable reference`;
+    return `Syntax error: must be a ${input.dataType} literal or a valid variable reference`;
 }
 
 // Watch for input changes and validate
@@ -289,6 +296,12 @@ const selectSuggestion = (inputName: string, suggestion: string) => {
     inputVariables.value[inputName] = suggestion;
     activeAutocomplete.value = null;
     filteredSuggestions.value = [];
+};
+
+const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+        success(`Copied "${text}" to clipboard`);
+    });
 };
 
 </script>
@@ -426,6 +439,22 @@ const selectSuggestion = (inputName: string, suggestion: string) => {
     color: #e6ce31; /* Yellowish for output vars */
     font-family: monospace;
     font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.readonly-value:hover {
+    background: #2d2d2e;
+    border-color: #555;
+    box-shadow: 0 0 4px rgba(230, 206, 49, 0.3);
+}
+
+.readonly-value.copied {
+    background: #1e4d2b;
+    border-color: #4ec9b0;
+    color: #4ec9b0;
+    box-shadow: 0 0 6px rgba(78, 201, 176, 0.4);
 }
 
 .empty-msg {

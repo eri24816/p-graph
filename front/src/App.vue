@@ -2,12 +2,14 @@
     <div class="main" @mousemove="onMouseMove" @wheel="onWheel">
 
         <PGraph class="graph"/>
+        <NotificationPopup />
     </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import PGraph from './components/graph/PGraph.vue';
+import NotificationPopup from './components/NotificationPopup.vue';
 
 const message = ref('Waiting for response from backend');
 const codeArea = ref('');
