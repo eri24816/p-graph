@@ -1,3 +1,4 @@
+import asyncio
 import os
 import sys
 import importlib
@@ -6,250 +7,78 @@ import time
 from collections import deque
 from .base import Executor
 
+# {"nodes":[{"id":"e31eee3a-3fee-4121-a708-3aa232401bed","title":"sdfas","type":"function","inputVariables":{"frame_id":"\"545235\""}},{"id":"e9d5d0a7-2c83-4fef-9ec4-6388bb148deb","title":"detect-pose2","type":"function","inputVariables":{"frame_id":"\"d\""}},{"id":"c8c46017-8e6f-4950-aec0-b5cca884692e","title":"detect-pose","type":"function","inputVariables":{"frame_id":"\"0\""}},{"id":"d75254d7-7161-4836-ba3f-b829574dea96","title":"detect-pose-1fadfasdfasdfad","type":"function","inputVariables":{"frame_id":"\"0\""}},{"id":"c83c6ce7-d228-4378-8598-4bbea9cb7da5","title":"Start","type":"start","inputVariables":{}}],"edges":[{"source":"d75254d7-7161-4836-ba3f-b829574dea96","source_port":"385a5a37-5cef-4dc6-996f-10bf5fa39a2f","target":"c8c46017-8e6f-4950-aec0-b5cca884692e","target_port":"ff6a08a7-51f6-4a06-9f09-db07a990229b"},{"source":"d75254d7-7161-4836-ba3f-b829574dea96","source_port":"385a5a37-5cef-4dc6-996f-10bf5fa39a2f","target":"e9d5d0a7-2c83-4fef-9ec4-6388bb148deb","target_port":"5e684293-f2a6-4407-b4cd-ddffa7877660"},{"source":"c83c6ce7-d228-4378-8598-4bbea9cb7da5","source_port":"26ff899e-2745-4c28-925b-000e27534547","target":"d75254d7-7161-4836-ba3f-b829574dea96","target_port":"54eacacb-a878-4f45-9517-b05229af4bec"},{"source":"c83c6ce7-d228-4378-8598-4bbea9cb7da5","source_port":"26ff899e-2745-4c28-925b-000e27534547","target":"e31eee3a-3fee-4121-a708-3aa232401bed","target_port":"b08252a2-0bd6-4f76-a255-6f7a2fbd8c1b"}]}
 
-class VariableStore:
-    def __init__(self):
-        self.variables = {}
+class Graph():
+    def __init__(self, graph_data):
+        self.nodes = {node['id']: node for node in graph_data["nodes"]}
+        self.edges = graph_data["edges"]
 
-    def get(self, name):
-        return self.variables.get(name)
-
-    def set(self, name, value):
-        self.variables[name] = value
+    def get_start_nodes(self):
+        return [node for node in self.nodes.values() if node['type'] == "start"]
+    
+    def get_control_flow_dest(self, node_id):
+        dest_nodes = []
+        for edge in self.edges:
+            if edge['source'] == node_id:
+                target_node = self.nodes[edge['target']]
+                dest_nodes.append(target_node)
+        return dest_nodes
 
 class DefaultExecutor(Executor):
     def __init__(self):
-        self.graph_data = None
-        self.execution_order = []
         self.running = False
         self.current_node_id = None
-        self.variable_store = VariableStore()
-        self.thread = None
-
-    def load_graph(self, graph_data):
-        self.graph_data = graph_data
-        # Prioritize finding start node
-        start_nodes = [n for n in graph_data['nodes'] if n.get('is_start')]
-        
-        if start_nodes:
-            self.execution_order = self._bfs_sort(graph_data, start_nodes)
-            print(f"Graph loaded (from start). Execution order: {[n['title'] for n in self.execution_order]}")
-        else:
-            # Fallback to topological sort of all
-            self.execution_order = self._topological_sort(graph_data)
-            print(f"Graph loaded (full topo). Execution order: {[n['title'] for n in self.execution_order]}")
-
-    def _bfs_sort(self, graph, start_nodes):
-        nodes = {n["id"]: n for n in graph["nodes"]}
-        adj = {n["id"]: [] for n in graph["nodes"]}
-        for edge in graph["edges"]:
-            if edge["source"] in nodes and edge["target"] in nodes:
-                adj[edge["source"]].append(edge["target"])
-                
-        visited = set()
-        queue = deque([n["id"] for n in start_nodes])
-        sorted_nodes = []
-        
-        while queue:
-            u_id = queue.popleft()
-            if u_id in visited:
-                continue
-            visited.add(u_id)
-            sorted_nodes.append(nodes[u_id])
-            
-            # Append neighbors
-            for v_id in adj[u_id]:
-                if v_id not in visited:
-                    queue.append(v_id)
-        
-        return sorted_nodes
-
-    def _topological_sort(self, graph):
-        # Build dependency graph
-        # For simplicity in this version, we assume edges define dependency
-        # graph_data = { nodes: [], edges: [] }
-        nodes = {n["id"]: n for n in graph["nodes"]}
-        in_degree = {n["id"]: 0 for n in graph["nodes"]}
-        adj = {n["id"]: [] for n in graph["nodes"]}
-
-        for edge in graph["edges"]:
-            source = edge["source"]
-            target = edge["target"]
-            # Check if nodes exist (serialization might include deleted node edges if not cleaned)
-            if source in nodes and target in nodes:
-                adj[source].append(target)
-                in_degree[target] += 1
-        
-        queue_nodes = deque([n_id for n_id, d in in_degree.items() if d == 0])
-        sorted_nodes = []
-
-        while queue_nodes:
-            u_id = queue_nodes.popleft()
-            sorted_nodes.append(nodes[u_id])
-            
-            for v_id in adj[u_id]:
-                in_degree[v_id] -= 1
-                if in_degree[v_id] == 0:
-                    queue_nodes.append(v_id)
-        
-        if len(sorted_nodes) != len(nodes):
-             print("Warning: Graph contains cycles or disconnected components not reachable.")
-        
-        return sorted_nodes
-
-    def start(self):
-        if self.running:
-            return
-        self.running = True
-        self.thread = threading.Thread(target=self.run)
-        self.thread.start()
+        self.globals = {}
+        self.locals = {}
+        self.graph = Graph({"nodes": [], "edges": []})
 
     def run(self):
-        print("Starting execution loop...")
-        
-        # Add root dir to sys.path to ensure service imports work
-        # Assuming we are in w:\p-graph\back\p_graph\executor
-        # root is w:\p-graph
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-        if root_dir not in sys.path:
-            sys.path.insert(0, root_dir)
+        # start event loop
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
 
-        while self.running:
-            for node in self.execution_order:
-                if not self.running:
-                    break
-                
-                self.current_node_id = node["id"]
-                # Skip start node logic, just proceed
-                if node.get('is_start'):
-                    print(f"Executing Start Node ({node['id']})")
-                    continue
-                    
-                print(f"Executing node: {node['title']} ({node['id']})")
-                
-                # Service execution
-                if node.get('type') != 'Generic' and node.get('service_schema'):
-                    try:
-                        schema = node['service_schema']
-                        # service_file property from .aiproto
-                        service_file = schema.get('service_file')
-                        
-                        # Fallback for python_path if explicitly set
-                        python_path = schema.get('python_path')
-                        
-                        module_name = service_file or python_path
-                        
-                        if module_name:
-                            # Try to import. We might need to prefix with 'example_services.services' 
-                            # if that's where they are, or rely on scanning.
-                            # For the demo, we know they are in example_services.services
-                            # But technically the service file just says "pose_detector_service".
-                            # We should probably robustly find it.
-                            # For now, hardcode the prefix loop.
-                            
-                            module = None
-                            prefixes = ["", "example_services.services.", "services."]
-                            
-                            for prefix in prefixes:
-                                try:
-                                    full_name = f"{prefix}{module_name}"
-                                    module = importlib.import_module(full_name)
-                                    break
-                                except ImportError:
-                                    continue
-                            
-                            if module:
-                                # Find handler
-                                # Assuming app instance is named 'app'
-                                if hasattr(module, 'app'):
-                                    app_instance = module.app
-                                    # Find route for this service path
-                                    service_path = "/" + schema.get('path', '')
-                                    handler = None
-                                    
-                                    # Accessing internal router
-                                    if hasattr(app_instance, 'router') and hasattr(app_instance.router, 'routes'):
-                                        handler = app_instance.router.routes.get(service_path)
-                                    
-                                    if handler:
-                                        # Prepare inputs
-                                        # TODO: Construct actual Request object
-                                        # For now, just passing a Mock or Dictionary if supported, 
-                                        # but the services expect typed objects (DetectPoseRequest).
-                                        # Dynamic instantiation of protobuf is tricky without the class.
-                                        # Maybe we can find the Request class in the module imports?
-                                        
-                                        # Hack: Inspect handler annotations
-                                        import inspect
-                                        sig = inspect.signature(handler)
-                                        request_class = None
-                                        
-                                        for param in sig.parameters.values():
-                                            if param.annotation != inspect.Parameter.empty:
-                                                request_class = param.annotation
-                                                break
-                                        
-                                        if request_class:
-                                            # Construct request
-                                            req_kwargs = {}
-                                            # Map inputs
-                                            inputs_mapping = node.get('inputs', {})
-                                            
-                                            for field_name, var_name in inputs_mapping.items():
-                                                val = self.variable_store.get(var_name)
-                                                if val is not None:
-                                                    req_kwargs[field_name] = val
-                                            
-                                            # Simple instantiation
-                                            try:
-                                                request_obj = request_class(**req_kwargs)
-                                                
-                                                # Call handler
-                                                print(f"Invoking {module_name} handler for {service_path}")
-                                                response = handler(request_obj)
-                                                
-                                                # Handle Outputs
-                                                # Map response fields to variables?
-                                                # Current node settings doesn't have output mapping fully defined in UI yet
-                                                # but let's assume standard conventions or if we had it.
-                                                # For now, just print result.
-                                                print(f"Result from {node['title']}: {response}")
-                                                
-                                            except Exception as e:
-                                                print(f"Error invoking service {node['title']}: {e}")
-                                        else:
-                                            print(f"Could not determine request class for {node['title']}")
-                                    else:
-                                        print(f"No handler found for path {service_path} in {module_name}")
-                                else:
-                                    print(f"No 'app' object found in module {module_name}")
-                            else:
-                                print(f"Could not import module {module_name}")
-                        else:
-                             print(f"No service_file/python_path for {node['title']}")
+    def start(self, graph_data):
+        print("Starting execution...")
+        self.graph = Graph(graph_data)
+        self.running = True
 
-                    except Exception as e:
-                        print(f"Execution error on node {node['id']}: {e}")
+        for start_node in self.graph.get_start_nodes():
+            asyncio.run_coroutine_threadsafe(self.setup_start_node(start_node),self.loop)
 
-                time.sleep(0.5)
-                
-            # One pass for demo, or loop?
-            # If standard graph, usually one pass unless triggered again.
-            # We'll break after one pass for now to avoid infinite fast loops.
-            break
-            
-        print("Execution run finished.")
-        self.running = False
+    async def setup_start_node(self, start_node):
+        tasks = []
+        for dest_node in self.graph.get_control_flow_dest(start_node['id']):
+            tasks.append(self.execute_node(dest_node))  
+        await asyncio.gather(*tasks)
+        print("Execution finished for start node:", start_node['id'])
+
+    async def execute_node(self, node):
+        if not self.running:
+            return
+
+        self.current_node_id = node['id']
+
+        await self.node_task(node)
+
+        # After execution, trigger next nodes
+        tasks = []
+        for dest_node in self.graph.get_control_flow_dest(node['id']):
+            tasks.append(self.execute_node(dest_node))
+        await asyncio.gather(*tasks)
+
+    async def node_task(self, node):
+        print(f"Node {node['title']} is running its task...")
+        await asyncio.sleep(1)  # Simulate some async work
 
     def stop(self):
         print("Stopping execution...")
         self.running = False
-        if self.thread:
-            self.thread.join()
 
     def get_state(self):
         return {
             "running": self.running,
             "current_node_id": self.current_node_id,
-            "variables": self.variable_store.variables
+            "variables": {}
         }

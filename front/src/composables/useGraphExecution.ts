@@ -58,17 +58,9 @@ export function useGraphExecution(
 
     // ==================== DEPLOYMENT ====================
 
-    const deployGraph = async () => {
+    const runGraph = async () => {
         const graphData = serializeGraph()
-        await post('http://localhost:8000/deploy', graphData)
-    }
-
-    // ==================== EXECUTION ====================
-
-    const startGraph = async () => {
-        await post('http://localhost:8000/start')
-        isRunning.value = true
-        startPolling()
+        await post('http://localhost:8000/run', graphData)
     }
 
     const stopGraph = async () => {
@@ -125,8 +117,7 @@ export function useGraphExecution(
 
         // Operations
         serializeGraph,
-        deployGraph,
-        startGraph,
+        runGraph,
         stopGraph,
 
         // Cleanup

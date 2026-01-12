@@ -16,7 +16,7 @@ class ExecuteRequest(BaseModel):
     code: str
 
 
-class DeployRequest(BaseModel):
+class RunRequest(BaseModel):
     nodes: list
     edges: list
 
@@ -37,12 +37,10 @@ class Server:
 
         self.functions = functions
 
-        self.app.post("/execute")(self.execute)
         self.app.get("/functions")(self.get_functions)
 
         # Executor Endpoints
-        self.app.post("/deploy")(self.deploy)
-        self.app.post("/start")(self.start_execution)
+        self.app.post("/run")(self.run_graph)
         self.app.post("/stop")(self.stop_execution)
         self.app.get("/state")(self.get_state)
 
@@ -56,33 +54,15 @@ class Server:
     def get_functions(self):
         return self.functions
 
-    def execute(self, request: ExecuteRequest):
-        self.executor.execute_python(request.code)
-        return {"status": "queued"}
-
-    def deploy(self, request: DeployRequest):
-        if self.executor:
-            graph_data = request.model_dump()
-            self.executor.load_graph(graph_data)
-            return {"status": "deployed"}
-        return {"status": "no_executor"}
-
-    def start_execution(self):
-        if self.executor:
-            self.executor.start()
-            return {"status": "started"}
-        return {"status": "no_executor"}
+    def run_graph(self, request: RunRequest):
+        graph_data = request.model_dump()
+        self.executor.start(graph_data)
 
     def stop_execution(self):
-        if self.executor:
-            self.executor.stop()
-            return {"status": "stopped"}
-        return {"status": "no_executor"}
+        self.executor.stop()
 
     def get_state(self):
-        if self.executor:
-            return self.executor.get_state()
-        return {"status": "no_executor"}
+        return self.executor.get_state()
 
     def run(self):
         self.uvicorn_server.run()

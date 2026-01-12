@@ -178,7 +178,7 @@ const node = funcs.createFunctionNode(config, 'MyNode')
 - `isRunning: Ref<boolean>`
 
 **Operations**:
-- `deployGraph()` - Deploy to backend
+- `runGraph()` - Deploy to backend
 - `startGraph()` - Start execution
 - `stopGraph()` - Stop execution
 - `serializeGraph()` - Convert to backend format
@@ -192,7 +192,7 @@ const node = funcs.createFunctionNode(config, 'MyNode')
 **Use cases**:
 ```typescript
 const exec = useGraphExecution(nodes, edges)
-await exec.deployGraph()
+await exec.runGraph()
 await exec.startGraph()
 // exec.activeNodeId updates via polling
 ```
@@ -254,7 +254,7 @@ const graph = useGraph()
 graph.addNode(node)           // From useGraphData
 graph.zoomIn()                // From useGraphViewport
 graph.selectNode(id)          // From useGraphEditor
-graph.deployGraph()           // From useGraphExecution
+graph.runGraph()           // From useGraphExecution
 graph.saveGraphToDisk(name)   // From useGraphPersistence
 ```
 
@@ -307,7 +307,7 @@ UI highlights selected items
 ```
 User clicks "Run"
     ↓
-useGraphExecution.deployGraph()
+useGraphExecution.runGraph()
     ↓
 Serialize graph (nodes → backend format)
     ↓
@@ -461,7 +461,7 @@ const {
     scale, panX, panY,
     editor,
     fetchFunctions,
-    deployGraph,
+    runGraph,
     // ... other APIs
 } = graph
 

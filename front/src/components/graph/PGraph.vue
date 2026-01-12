@@ -1,7 +1,7 @@
 <template>
     <div class="pgraph-container">
         <SidebarPalette :functions="functions" @addFunctionNode="addFunctionNode" @addStartNode="addStartNode" />
-        <button class="run-btn" @click="deployGraph">Run</button>
+        <button class="run-btn" @click="runGraph">Run</button>
         <div class="file-controls">
             <button class="file-btn" @click="handleSaveDisk">Save</button>
             <button class="file-btn" @click="handleLoadDisk">Load</button>
@@ -108,7 +108,7 @@ const {
     fetchFunctions,
     addFunctionNode,
     backgroundStyle,
-    deployGraph,
+    runGraph,
     activeNodeId,
     addStartNode,
     loadFromLocalStorage,

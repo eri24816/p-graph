@@ -1,18 +1,15 @@
 from abc import ABC, abstractmethod
 
 class Executor(ABC):
-    @abstractmethod
-    def load_graph(self, graph_data):
-        pass
 
     @abstractmethod
     def run(self):
-        """Start execution loop (blocking or non-blocking depending on impl)"""
+        """Take over the main thread and run execution loop"""
         pass
 
     @abstractmethod
-    def start(self):
-        """Start execution in a non-blocking way (e.g. thread)"""
+    def start(self, graph):
+        """Start executing the provided graph in the execution loop. Non-blocking."""
         pass
 
     @abstractmethod

@@ -171,8 +171,7 @@ export function useGraph(getNodeBounds?: (nodeId: string | number) => DOMRect | 
         activeNodeId: execution.activeNodeId,
         isRunning: execution.isRunning,
         serializeGraph: execution.serializeGraph,
-        deployGraph: execution.deployGraph,
-        startGraph: execution.startGraph,
+        runGraph: execution.runGraph,
         stopGraph: execution.stopGraph,
 
         // Persistence (useGraphPersistence)
