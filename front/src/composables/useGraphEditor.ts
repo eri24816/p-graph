@@ -8,6 +8,7 @@ export interface GraphEditorOptions {
     onSelectionChange?: (nodeIds: Set<string | number>, edgeIds: Set<string | number>) => void
     getNewNodeName?: (prefix: string, existingNodes: NodeData[]) => string
     getNodeBounds?: (nodeId: string | number) => DOMRect | null
+    isModalOpen?: Ref<boolean>
 }
 
 export interface Rectangle {
@@ -20,7 +21,7 @@ export interface Rectangle {
 export { type Rectangle as RectangleType }
 
 export function useGraphEditor(options: GraphEditorOptions) {
-    const { nodes, edges, onSelectionChange, getNewNodeName, getNodeBounds } = options
+    const { nodes, edges, onSelectionChange, getNewNodeName, getNodeBounds, isModalOpen } = options
 
     // ==================== SELECTION STATE ====================
     const selectedNodeIds = ref<Set<string | number>>(new Set())
@@ -461,6 +462,9 @@ export function useGraphEditor(options: GraphEditorOptions) {
     }
 
     const handleNodeMouseDown = (node: NodeData, event: MouseEvent, frameEl: any) => {
+        // Ignore if modal is open
+        if (isModalOpen?.value) return
+
         event.preventDefault() // Prevent text selection during drag
 
         // Handle selection
@@ -487,6 +491,9 @@ export function useGraphEditor(options: GraphEditorOptions) {
     // ==================== EDGE INTERACTION ====================
 
     const handleEdgeClick = (edge: EdgeData, event: MouseEvent) => {
+        // Ignore if modal is open
+        if (isModalOpen?.value) return
+
         event.stopPropagation()
 
         if (event.ctrlKey || event.metaKey) {
@@ -501,6 +508,9 @@ export function useGraphEditor(options: GraphEditorOptions) {
     // ==================== BACKGROUND INTERACTION ====================
 
     const handleBackgroundMouseDown = (event: MouseEvent, frameEl: any) => {
+        // Ignore if modal is open
+        if (isModalOpen?.value) return
+
         const mousePos = frameEl.getMousePosition(event)
 
         if (event.button === 0) {
@@ -527,6 +537,9 @@ export function useGraphEditor(options: GraphEditorOptions) {
     // ==================== KEYBOARD SHORTCUTS ====================
 
     const handleKeyDown = (event: KeyboardEvent) => {
+        // Ignore if modal is open
+        if (isModalOpen?.value) return
+
         // Ignore if typing in input
         if (event.target instanceof HTMLInputElement ||
             event.target instanceof HTMLTextAreaElement) {

@@ -12,12 +12,17 @@
         <div v-for="i in counts.info" :key="`info-${i}`" class="validation-icon info" :title="getInfoMessages()">
             <Info :size="12" />
         </div>
+        <!-- Static issue icons -->
+        <div v-for="i in counts.staticIssues" :key="`static-issue-${i}`" class="validation-icon static-issue" :title="getStaticIssueMessages()">
+            <FileWarning :size="12" />
+        </div>
+
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { XCircle, AlertTriangle, Info } from 'lucide-vue-next'
+import { XCircle, AlertTriangle, Info, FileWarning } from 'lucide-vue-next'
 import type { ValidationIssue } from '@/composables/useGraphValidation'
 
 const props = defineProps<{
@@ -27,7 +32,8 @@ const props = defineProps<{
 const counts = computed(() => ({
     errors: props.issues.filter(i => i.type === 'error').length,
     warnings: props.issues.filter(i => i.type === 'warning').length,
-    info: props.issues.filter(i => i.type === 'info').length
+    info: props.issues.filter(i => i.type === 'info').length,
+    staticIssues: props.issues.filter(i => i.type === 'static-issue').length
 }))
 
 const hasIssues = computed(() => props.issues.length > 0)
@@ -49,6 +55,13 @@ const getWarningMessages = () => {
 const getInfoMessages = () => {
     return props.issues
         .filter(i => i.type === 'info')
+        .map(i => i.message)
+        .join('\n')
+}
+
+const getStaticIssueMessages = () => {
+    return props.issues
+        .filter(i => i.type === 'static-issue')
         .map(i => i.message)
         .join('\n')
 }
@@ -87,6 +100,11 @@ const getInfoMessages = () => {
 
 .validation-icon.info {
     background: #3b82f6;
+    color: white;
+}
+
+.validation-icon.static-issue {
+    background: #8b5cf6;
     color: white;
 }
 </style>

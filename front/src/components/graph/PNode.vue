@@ -32,15 +32,7 @@
 
             <div class="p-node-icon">
                 <component v-if="nodeData.icon" :is="getIcon(nodeData.icon)" :size="32" />
-                <svg v-else-if="nodeData.type === 'start'" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
-                    <line x1="4" y1="22" x2="4" y2="15"></line>
-                </svg>
-                <svg v-else xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                </svg>
+                <component v-else :is="getIcon('square-function')" :size="32" />
             </div>
         </div>
         <div class="p-node-title" :class="{'start-node-title': nodeData.type === 'start'}">
@@ -123,6 +115,7 @@ defineExpose({
     flex-direction: column;
     align-items: center;
     gap: 8px;
+    width: 70px;
 }
 
 .p-node {
@@ -165,8 +158,8 @@ defineExpose({
     letter-spacing: 0.025em;
     white-space: nowrap;
     overflow: visible;
-    max-width: 120px;
-    padding: 0 4px;
+    width: max-content;
+    position: relative;
 }
 
 .start-node-title {

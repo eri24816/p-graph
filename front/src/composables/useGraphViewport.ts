@@ -58,15 +58,23 @@ export function useGraphViewport() {
 
         const handler = new DragGraphHandler(event, frameEl)
 
-        const onMouseMove = (e: MouseEvent) => handler.update(e, frameEl)
+        const onMouseMove = (e: MouseEvent) => {
+            e.preventDefault() // Prevent context menu during drag
+            handler.update(e, frameEl)
+        }
         const onMouseUp = () => {
             onPanEnd?.(handler.dragged)
             window.removeEventListener('mousemove', onMouseMove)
             window.removeEventListener('mouseup', onMouseUp)
+            window.removeEventListener('contextmenu', onContextMenu)
+        }
+        const onContextMenu = (e: MouseEvent) => {
+            e.preventDefault() // Prevent context menu from appearing
         }
 
         window.addEventListener('mousemove', onMouseMove)
         window.addEventListener('mouseup', onMouseUp)
+        window.addEventListener('contextmenu', onContextMenu)
     }
 
     // ==================== UTILITIES ====================

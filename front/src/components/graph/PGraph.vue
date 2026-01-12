@@ -26,8 +26,8 @@
             @close="handleCloseSettings" @save="handleSaveSettings" />
 
         <div class="graph-area">
-            <TransformFrame class="p-graph" @wheel="handleWheel($event, frame)"
-                @mousedown="onBackgroundMouseDown($event)" :style="backgroundStyle">
+            <TransformFrame class="p-graph" @wheel="onWheel($event)"
+                @mousedown="onBackgroundMouseDown($event)" @contextmenu="onContextMenu($event)" :style="backgroundStyle">
 
 
 
@@ -89,8 +89,12 @@ const getNodeBounds = (nodeId: string | number): DOMRect | null => {
     return nodeRef.getBoundingRect()
 }
 
+// --- Settings Handling (defined before useGraph) ---
+const settingsOpen = ref(false)
+const selectedNode = ref<NodeData | null>(null)
+
 // Use reusable graph logic
-const graph = useGraph(getNodeBounds)
+const graph = useGraph(getNodeBounds, settingsOpen)
 const {
     nodes,
     edges,
@@ -153,6 +157,9 @@ const confirmLoad = async (filename: string) => {
 // Background click handler
 const onBackgroundMouseDown = (event: MouseEvent) => {
     if (!frame.value) return
+    // Ignore if settings modal is open
+    if (settingsOpen.value) return
+
     event.preventDefault();
 
     // Middle mouse button (button 1) always pans
@@ -170,8 +177,23 @@ const onBackgroundMouseDown = (event: MouseEvent) => {
     }
 }
 
+// Wheel handler (for zooming)
+const onWheel = (event: WheelEvent) => {
+    // Ignore if settings modal is open
+    if (settingsOpen.value) return
+    handleWheel(event, frame.value)
+}
+
+// Context menu handler (prevent right-click menu)
+const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault() // Always prevent context menu on the graph area
+}
+
 // View Layer Switching & Shortcuts
 const handleKeydown = (event: KeyboardEvent) => {
+    // Ignore if settings modal is open
+    if (settingsOpen.value) return
+
     // Ignore if input is focused
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
 
@@ -306,9 +328,6 @@ watch(nodes, () => {
 
 
 // --- Settings Handling ---
-const settingsOpen = ref(false)
-const selectedNode = ref<NodeData | null>(null)
-
 const handleOpenSettings = (node: NodeData) => {
     selectedNode.value = node
     settingsOpen.value = true

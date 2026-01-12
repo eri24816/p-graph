@@ -2,30 +2,26 @@
     <div v-if="isOpen" class="node-settings-overlay" @click.self="$emit('close')">
         <div class="node-settings-modal">
             <div class="header">
-                <h3>{{ props.node.nodeName }}</h3>
+                <div class="header-content">
+                    <h3>
+                        <AdaptiveInput class = "node-name-input"
+                            v-model="nodeName"
+                            :input-class="{ 'name-error': hasError }"
+                            @blur="handleInputBlur"
+                        />
+                        <span class="node-type">{{ nodeTypeName }}</span>
+                    </h3>
+                    <div v-if="hasNameConflict || hasInvalidCharacters" class="header-error-msg">
+                        <span v-if="hasNameConflict">Name conflict: Another node already uses this name</span>
+                        <span v-if="hasInvalidCharacters">Only letters, numbers, hyphens, and underscores are allowed</span>
+                    </div>
+                </div>
                 <button class="close-btn" @click="$emit('close')">×</button>
             </div>
 
             <div class="content">
-                <div class="section">
-                    <h4>Node Name</h4>
-                    <input
-                        v-model="nodeName"
-                        placeholder="Enter node name..."
-                        class="variable-input"
-                        :class="{ 'name-conflict': hasError }"
-                        @blur="handleInputBlur"
-                    />
-                    <div v-if="hasNameConflict" class="error-msg">
-                        Name conflict: Another node already uses this name
-                    </div>
-                    <div v-if="hasInvalidCharacters" class="error-msg">
-                        Only letters, numbers, hyphens, and underscores are allowed
-                    </div>
-                </div>
 
                 <div v-if="validationIssues && validationIssues.length > 0" class="section">
-                    <h4>Issues</h4>
                     <div class="validation-list">
                         <div
                             v-for="(issue, index) in validationIssues"
@@ -34,9 +30,10 @@
                             :class="issue.type"
                         >
                             <span class="validation-icon-inline">
-                                <span v-if="issue.type === 'error'">✕</span>
-                                <span v-else-if="issue.type === 'warning'">⚠</span>
-                                <span v-else>ℹ</span>
+                                <XCircle v-if="issue.type === 'error'" :size="14" />
+                                <AlertTriangle v-else-if="issue.type === 'warning'" :size="14" />
+                                <FileWarning v-else-if="issue.type === 'static-issue'" :size="14" />
+                                <Info v-else :size="14" />
                             </span>
                             <span class="validation-message" v-html="issue.message"></span>
                         </div>
@@ -111,12 +108,14 @@ import type { NodeData } from '@/types/PGraph';
 import { ref, watch, computed } from 'vue';
 import { isValidLiteral, isValidVariableReference } from '@/utils/validation';
 import { useNotification } from '@/composables/useNotification';
+import { XCircle, AlertTriangle, Info, FileWarning } from 'lucide-vue-next';
+import AdaptiveInput from '@/components/common/AdaptiveInput.vue';
 
 const props = defineProps<{
     node: NodeData,
     isOpen: boolean,
     allNodes: NodeData[],
-    validationIssues?: Array<{ type: 'error' | 'warning' | 'info', message: string }>
+    validationIssues?: Array<{ type: 'error' | 'warning' | 'info' | 'static-issue', message: string }>
 }>();
 
 const emit = defineEmits(['close', 'save']);
@@ -304,6 +303,13 @@ const copyToClipboard = (text: string) => {
     });
 };
 
+const nodeTypeName = computed(() => {
+    if (props.node.functionConfig) {
+        return `function: ${props.node.functionConfig.function_name}`;
+    }
+    return props.node.type.charAt(0).toUpperCase() + props.node.type.slice(1);
+});
+
 </script>
 
 <style scoped>
@@ -330,17 +336,49 @@ const copyToClipboard = (text: string) => {
     flex-direction: column;
 }
 
+.node-name-input {
+    /* max-width: 300px; */
+}
+
 .header {
-    padding: 16px;
+    padding: 16px 20px;
     border-bottom: 1px solid #333;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+}
+
+.header-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .header h3 {
     margin: 0;
     color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.header h3 :deep(.adaptive-input.name-error:focus) {
+    border-color: #f14c4c;
+    background: #3d2020;
+}
+
+.header-error-msg {
+    font-size: 12px;
+    color: #f14c4c;
+    font-weight: normal;
+}
+
+.node-type {
+    font-size: 0.8em;
+    color: #888;
+    /* margin-left: 6px; */
 }
 
 .close-btn {
@@ -359,10 +397,9 @@ const copyToClipboard = (text: string) => {
     padding: 20px;
     max-height: 60vh;
     overflow-y: auto;
-}
-
-.section {
-    margin-bottom: 20px;
+    gap: 16px;
+    display: flex;
+    flex-direction: column;
 }
 
 .section h4 {
@@ -546,6 +583,11 @@ const copyToClipboard = (text: string) => {
     border-left-color: #3b82f6;
 }
 
+.validation-item.static-issue {
+    background: rgba(139, 92, 246, 0.1);
+    border-left-color: #8b5cf6;
+}
+
 .validation-icon-inline {
     flex-shrink: 0;
     width: 16px;
@@ -566,6 +608,10 @@ const copyToClipboard = (text: string) => {
 
 .validation-item.info .validation-icon-inline {
     color: #3b82f6;
+}
+
+.validation-item.static-issue .validation-icon-inline {
+    color: #8b5cf6;
 }
 
 .validation-message {

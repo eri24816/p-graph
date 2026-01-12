@@ -78,7 +78,8 @@ export function useGraphFunctions() {
             controlInput: { name: 'control', id: uuid(), type: 'input', layer: 'control', dataType: 'None' },
             controlOutput: { name: 'control', id: uuid(), type: 'output', layer: 'control', dataType: 'None' },
             type: 'start',
-            inputVariables: {}
+            inputVariables: {},
+            icon: 'flag'
         }
     }
 

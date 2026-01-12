@@ -19,7 +19,7 @@ import { useGraphLayers } from './useGraphLayers'
  * - useGraphExecution: Deployment and runtime
  * - useGraphPersistence: Save/load
  */
-export function useGraph(getNodeBounds?: (nodeId: string | number) => DOMRect | null) {
+export function useGraph(getNodeBounds?: (nodeId: string | number) => DOMRect | null, isModalOpen?: import('vue').Ref<boolean>) {
     // ==================== INITIALIZE MODULES ====================
 
     // Core data
@@ -41,7 +41,8 @@ export function useGraph(getNodeBounds?: (nodeId: string | number) => DOMRect | 
         nodes,
         edges,
         getNewNodeName: functionsModule.getNewNodeName,
-        getNodeBounds
+        getNodeBounds,
+        isModalOpen
     })
 
     // Execution

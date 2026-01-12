@@ -3,7 +3,7 @@ import type { NodeData, EdgeData } from '@/types/PGraph'
 import { isValidLiteral, isValidVariableReference } from '@/utils/validation'
 
 export type ValidationIssue = {
-    type: 'error' | 'warning' | 'info'
+    type: 'error' | 'warning' | 'info' | 'static-issue'
     message: string
 }
 
@@ -67,7 +67,7 @@ export function useGraphValidation(
                 if (!varName || varName.trim() === '') {
                     // Input not mapped
                     issues.push({
-                        type: 'error',
+                        type: 'static-issue',
                         message: `Input <b>${input.name}</b> is not set`
                     })
                     return
@@ -84,7 +84,7 @@ export function useGraphValidation(
                 // Check if it's a valid variable reference format
                 if (!isValidVariableReference(trimmed)) {
                     issues.push({
-                        type: 'error',
+                        type: 'static-issue',
                         message: `Syntax error in input <b>${input.name}</b>`
                     })
                     return
@@ -98,7 +98,7 @@ export function useGraphValidation(
                 const sourceNode = nodes.value.find(n => n.nodeName === sourceNodeName)
                 if (!sourceNode) {
                     issues.push({
-                        type: 'error',
+                        type: 'static-issue',
                         message: `Variable <b>${varName}</b> does not exist`
                     })
                     return
@@ -107,7 +107,7 @@ export function useGraphValidation(
                 // Check if source node is in connected nodes
                 if (!connectedNodeIds.value.has(sourceNode.id)) {
                     issues.push({
-                        type: 'error',
+                        type: 'static-issue',
                         message: `Input <b>${input.name}</b> depends on node <b>${sourceNodeName}</b>, which will never execute`
                     })
                     return
@@ -117,7 +117,7 @@ export function useGraphValidation(
                 const sourceOutput = sourceNode.outputs.find(o => o.name === outputName)
                 if (!sourceOutput) {
                     issues.push({
-                        type: 'error',
+                        type: 'static-issue',
                         message: `Variable <b>${varName}</b> does not exist`
                     })
                     return
@@ -126,7 +126,7 @@ export function useGraphValidation(
                 // Check type compatibility
                 if (input.dataType !== sourceOutput.dataType) {
                     issues.push({
-                        type: 'error',
+                        type: 'static-issue',
                         message: `Type mismatch for input <b>${input.name}</b>: expected ${input.dataType}, got ${sourceOutput.dataType}`
                     })
                 }
@@ -151,7 +151,8 @@ export function useGraphValidation(
         return {
             errors: issues.filter(i => i.type === 'error').length,
             warnings: issues.filter(i => i.type === 'warning').length,
-            info: issues.filter(i => i.type === 'info').length
+            info: issues.filter(i => i.type === 'info').length,
+            staticIssues: issues.filter(i => i.type === 'static-issue').length
         }
     }
 
