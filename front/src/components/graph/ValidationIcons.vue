@@ -2,21 +2,22 @@
     <div v-if="hasIssues" class="validation-icons">
         <!-- Error icons -->
         <div v-for="i in counts.errors" :key="`error-${i}`" class="validation-icon error" :title="getErrorMessages()">
-            🤨
+            <XCircle :size="12" />
         </div>
         <!-- Warning icons -->
         <div v-for="i in counts.warnings" :key="`warning-${i}`" class="validation-icon warning" :title="getWarningMessages()">
-            !
+            <AlertTriangle :size="12" />
         </div>
         <!-- Info icons -->
         <div v-for="i in counts.info" :key="`info-${i}`" class="validation-icon info" :title="getInfoMessages()">
-            i
+            <Info :size="12" />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { XCircle, AlertTriangle, Info } from 'lucide-vue-next'
 import type { ValidationIssue } from '@/composables/useGraphValidation'
 
 const props = defineProps<{
@@ -56,9 +57,8 @@ const getInfoMessages = () => {
 <style scoped>
 .validation-icons {
     position: absolute;
-    top: -16px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: -20px;
+    right: 0;
     display: flex;
     gap: 4px;
     z-index: 10;
@@ -71,9 +71,6 @@ const getInfoMessages = () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: help;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
