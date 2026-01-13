@@ -3,10 +3,12 @@ from p_graph.data_structures import FunctionConfig
 from p_graph.executor.base import Executor
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import os
 import json
 import uvicorn
+import asyncio
 
 import logging
 logger = logging.getLogger(__name__)
@@ -43,6 +45,7 @@ class Server:
         self.app.post("/run")(self.run_graph)
         self.app.post("/stop")(self.stop_execution)
         self.app.get("/state")(self.get_state)
+        self.app.get("/state/stream")(self.stream_state)
 
         # Graph Persistence Endpoints
         self.app.get("/graphs")(self.list_graphs)
@@ -63,6 +66,23 @@ class Server:
 
     def get_state(self):
         return self.executor.get_state()
+
+    async def stream_state(self):
+        """Stream executor state changes via Server-Sent Events"""
+        async def event_generator():
+            try:
+                while True:
+                    state = self.executor.get_state()
+                    yield f"data: {json.dumps(state)}\n\n"
+                    await asyncio.sleep(0.1)  # Send updates every 100ms
+
+                    # Stop streaming if executor is not running
+                    if not state.get('running', False):
+                        break
+            except asyncio.CancelledError:
+                logger.info("State stream cancelled")
+
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
 
     def run(self):
         self.uvicorn_server.run()

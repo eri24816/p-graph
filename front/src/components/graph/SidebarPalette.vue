@@ -17,8 +17,7 @@
                 draggable="true"
                 @dragstart="$emit('dragFunctionNode', $event, func)"
             >
-                <div class="function-name">{{ func.function_name }}</div>
-                <div class="function-type" v-if="func.type">Type: {{ func.type }}</div>
+                <div class="function-name">{{ func.default_node_name }}</div>
             </div>
             <div v-if="functions.length === 0" class="empty-msg">No functions found</div>
         </div>
@@ -26,10 +25,12 @@
 </template>
 
 <script setup lang="ts">
+import type { FunctionConfig } from '@/types/PGraph'
+
 
 
 defineProps<{
-    functions: any[]
+    functions: FunctionConfig[]
 }>();
 
 defineEmits(['addFunctionNode', 'dragFunctionNode', 'addStartNode']);

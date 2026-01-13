@@ -19,11 +19,12 @@ interface SerializedEdge {
 interface GraphExecutionState {
     current_node_id: string | null
     running: boolean
+    executing_node_ids?: string[]
 }
 
 /**
  * Graph execution and runtime management
- * Handles deployment, execution, and state polling
+ * Handles deployment, execution, and state streaming
  */
 export function useGraphExecution(
     nodes: Ref<NodeData[]>,
@@ -31,7 +32,7 @@ export function useGraphExecution(
 ) {
     const activeNodeId = ref<string | null>(null)
     const isRunning = ref(false)
-    let pollingInterval: any = null
+    let eventSource: EventSource | null = null
 
     // ==================== SERIALIZATION FOR EXECUTION ====================
 
@@ -41,6 +42,7 @@ export function useGraphExecution(
             title: node.nodeName,
             type: node.type,
             inputVariables: node.inputVariables,
+            function_name: node.functionConfig ? node.functionConfig.function_name : undefined
         }))
 
         const serializedEdges: SerializedEdge[] = edges.value.map(edge => ({
@@ -61,51 +63,56 @@ export function useGraphExecution(
     const runGraph = async () => {
         const graphData = serializeGraph()
         await post('http://localhost:8000/run', graphData)
+        startStreaming()
     }
 
     const stopGraph = async () => {
-        // Future: API endpoint to stop execution
-        stopPolling()
+        await post('http://localhost:8000/stop', {})
+        stopStreaming()
         isRunning.value = false
         activeNodeId.value = null
     }
 
-    // ==================== POLLING ====================
+    // ==================== STATE STREAMING ====================
 
-    const startPolling = () => {
-        if (pollingInterval) clearInterval(pollingInterval)
+    const startStreaming = () => {
+        if (eventSource) {
+            eventSource.close()
+        }
 
-        pollingInterval = setInterval(async () => {
+        eventSource = new EventSource('http://localhost:8000/state/stream')
+
+        eventSource.onmessage = (event) => {
             try {
-                const res = await fetch('http://localhost:8000/state')
-                if (res.ok) {
-                    const state: GraphExecutionState = await res.json()
-                    activeNodeId.value = state.current_node_id
-                    isRunning.value = state.running
+                const state: GraphExecutionState = JSON.parse(event.data)
+                activeNodeId.value = state.current_node_id
+                isRunning.value = state.running
 
-                    if (!state.running) {
-                        stopPolling()
-                    }
+                if (!state.running) {
+                    stopStreaming()
                 }
             } catch (e) {
-                console.error("Polling error", e)
-                stopPolling()
+                console.error("Error parsing state stream", e)
             }
-        }, 500)
+        }
+
+        eventSource.onerror = (error) => {
+            console.error("State stream error", error)
+            stopStreaming()
+        }
     }
 
-    const stopPolling = () => {
-        if (pollingInterval) {
-            clearInterval(pollingInterval)
-            pollingInterval = null
+    const stopStreaming = () => {
+        if (eventSource) {
+            eventSource.close()
+            eventSource = null
         }
-        isRunning.value = false
     }
 
     // ==================== CLEANUP ====================
 
     const cleanup = () => {
-        stopPolling()
+        stopStreaming()
     }
 
     // ==================== RETURN PUBLIC API ====================

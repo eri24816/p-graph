@@ -60,7 +60,7 @@ export function useGraph(getNodeBounds?: (nodeId: string | number) => DOMRect | 
 
     const addFunctionNode = (functionConfig: FunctionConfig) => {
         const nodeName = functionsModule.getNewNodeName(
-            functionConfig.function_name,
+            functionConfig.default_node_name || functionConfig.function_name,
             nodes.value
         )
         const node = functionsModule.createFunctionNode(functionConfig, nodeName)

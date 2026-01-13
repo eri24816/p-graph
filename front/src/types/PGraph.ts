@@ -39,6 +39,7 @@ export type EdgeData = {
 
 export type FunctionConfig = {
     function_name: string
+    default_node_name: string
     inputs: Record<string, string>
     outputs: Record<string, string>
 }
